@@ -15,10 +15,10 @@ pub mod ffi;
 pub mod hid;
 
 pub use error::HidError;
-pub use hid::{HidDeviceInfo, HidManager, HidUsage};
+pub use hid::{HidDevice, HidDeviceInfo, HidManager, HidUsage, ReportSubscription};
 
 /// Common imports.
 pub mod prelude {
     pub use crate::error::HidError;
-    pub use crate::hid::{HidDeviceInfo, HidManager, HidUsage};
+    pub use crate::hid::{HidDevice, HidDeviceInfo, HidManager, HidUsage, ReportSubscription};
 }

@@ -161,6 +161,202 @@ impl HidManager {
         unsafe { ffi::CFRelease(set) };
         out
     }
+
+    /// Enumerate matched devices as live [`HidDevice`] handles instead
+    /// of just info snapshots. Use the returned handles to call
+    /// [`HidDevice::on_input_report`] for streaming reads.
+    #[must_use]
+    pub fn live_devices(&self) -> Vec<HidDevice> {
+        let set = unsafe { ffi::IOHIDManagerCopyDevices(self.raw) };
+        if set.is_null() {
+            return Vec::new();
+        }
+        let count = unsafe { ffi::CFSetGetCount(set) };
+        let n = usize::try_from(count).unwrap_or(0);
+        let mut buffer: Vec<*const c_void> = vec![ptr::null(); n];
+        unsafe { ffi::CFSetGetValues(set, buffer.as_mut_ptr()) };
+        let out = buffer
+            .into_iter()
+            .filter_map(|p| {
+                if p.is_null() {
+                    None
+                } else {
+                    unsafe { ffi::CFRetain(p) };
+                    Some(HidDevice { raw: p.cast_mut() })
+                }
+            })
+            .collect();
+        unsafe { ffi::CFRelease(set) };
+        out
+    }
+}
+
+// ---- v0.3: HidDevice live wrapper ----
+
+/// A retained `IOHIDDeviceRef`. Use [`HidDevice::on_input_report`] to
+/// subscribe to live input-report bytes. Drops the device + cancels any
+/// active subscription on scope exit.
+pub struct HidDevice {
+    raw: ffi::IOHIDDeviceRef,
+}
+
+unsafe impl Send for HidDevice {}
+unsafe impl Sync for HidDevice {}
+
+impl Drop for HidDevice {
+    fn drop(&mut self) {
+        if !self.raw.is_null() {
+            unsafe { ffi::CFRelease(self.raw.cast_const()) };
+            self.raw = ptr::null_mut();
+        }
+    }
+}
+
+impl HidDevice {
+    /// Read this device's properties (vendor, product, usage, ...).
+    #[must_use]
+    pub fn info(&self) -> HidDeviceInfo {
+        read_device_info(self.raw)
+    }
+
+    /// Subscribe to raw input-report bytes from this device. The
+    /// `callback` fires on the main run loop with each report (typically
+    /// once per keypress / mouse move / button event).
+    ///
+    /// Returns a [`ReportSubscription`] guard — drop it to stop
+    /// receiving reports + close the device.
+    ///
+    /// `max_report_length` should be large enough for the device's
+    /// biggest report (256 bytes works for nearly all keyboards / mice;
+    /// gamepads may need 1024+).
+    ///
+    /// Requires the main run loop to be running (`CFRunLoopRun` /
+    /// `NSApplication.run` / Carbon `RunApplicationEventLoop`).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`HidError::ManagerOpenFailed`] wrapping the raw `IOReturn`
+    /// if `IOHIDDeviceOpen` fails (usually permission-related on macOS 15+).
+    #[allow(clippy::cast_possible_wrap, clippy::type_complexity)]
+    pub fn on_input_report<F>(
+        &self,
+        max_report_length: usize,
+        callback: F,
+    ) -> Result<ReportSubscription, HidError>
+    where
+        F: Fn(&[u8]) + Send + Sync + 'static,
+    {
+        let status = unsafe { ffi::IOHIDDeviceOpen(self.raw, ffi::kIOHIDOptionsTypeNone) };
+        if status != ffi::kIOReturnSuccess {
+            return Err(HidError::ManagerOpenFailed(status));
+        }
+
+        // Allocate the report buffer that Apple will populate each call.
+        let buffer = vec![0u8; max_report_length].into_boxed_slice();
+        let buf_ptr = Box::into_raw(buffer);
+        let buf_len = max_report_length;
+
+        let cb: Box<dyn Fn(&[u8]) + Send + Sync + 'static> = Box::new(callback);
+        let cb_raw = Box::into_raw(Box::new(cb));
+
+        let ctx_box = Box::new(SubContext {
+            buffer_ptr: buf_ptr,
+            buffer_len: buf_len,
+            callback: cb_raw,
+        });
+        let ctx_raw = Box::into_raw(ctx_box);
+
+        unsafe {
+            ffi::IOHIDDeviceScheduleWithRunLoop(
+                self.raw,
+                ffi::CFRunLoopGetCurrent(),
+                ffi::kCFRunLoopDefaultMode,
+            );
+            ffi::IOHIDDeviceRegisterInputReportCallback(
+                self.raw,
+                (*buf_ptr).as_mut_ptr(),
+                buf_len as ffi::CFIndex,
+                report_trampoline,
+                ctx_raw.cast::<c_void>(),
+            );
+        }
+
+        Ok(ReportSubscription {
+            device: self.raw,
+            buffer_ptr: buf_ptr,
+            buffer_len: buf_len,
+            ctx: ctx_raw,
+        })
+    }
+}
+
+#[allow(clippy::struct_field_names, clippy::type_complexity, clippy::cast_possible_wrap, clippy::module_name_repetitions, dead_code)]
+struct SubContext {
+    buffer_ptr: *mut [u8],
+    buffer_len: usize,
+    callback: *mut Box<dyn Fn(&[u8]) + Send + Sync + 'static>,
+}
+
+unsafe extern "C" fn report_trampoline(
+    context: *mut c_void,
+    _result: ffi::IOReturn,
+    _sender: *mut c_void,
+    _report_type: ffi::IOHIDReportType,
+    _report_id: u32,
+    report: *mut u8,
+    report_length: ffi::CFIndex,
+) {
+    if context.is_null() || report.is_null() {
+        return;
+    }
+    let ctx = unsafe { &*context.cast::<SubContext>() };
+    let len = usize::try_from(report_length).unwrap_or(0).min(ctx.buffer_len);
+    let bytes = unsafe { core::slice::from_raw_parts(report, len) };
+    let cb = unsafe { &*ctx.callback };
+    cb(bytes);
+}
+
+/// RAII guard for an active input-report subscription.
+#[allow(clippy::module_name_repetitions, clippy::cast_possible_wrap)]
+pub struct ReportSubscription {
+    device: ffi::IOHIDDeviceRef,
+    buffer_ptr: *mut [u8],
+    buffer_len: usize,
+    ctx: *mut SubContext,
+}
+
+unsafe impl Send for ReportSubscription {}
+
+impl Drop for ReportSubscription {
+    #[allow(clippy::cast_possible_wrap)]
+    fn drop(&mut self) {
+        if !self.device.is_null() && !self.buffer_ptr.is_null() {
+            unsafe {
+                ffi::IOHIDDeviceUnregisterInputReportCallback(
+                    self.device,
+                    (*self.buffer_ptr).as_mut_ptr(),
+                    self.buffer_len as ffi::CFIndex,
+                    report_trampoline,
+                    self.ctx.cast::<c_void>(),
+                );
+                ffi::IOHIDDeviceUnscheduleFromRunLoop(
+                    self.device,
+                    ffi::CFRunLoopGetCurrent(),
+                    ffi::kCFRunLoopDefaultMode,
+                );
+                ffi::IOHIDDeviceClose(self.device, ffi::kIOHIDOptionsTypeNone);
+
+                // Reconstruct + drop the boxes so the buffer + callback are released.
+                let ctx_box = Box::from_raw(self.ctx);
+                let _ = Box::from_raw(ctx_box.callback);
+                let _ = Box::from_raw(self.buffer_ptr);
+            }
+            self.device = ptr::null_mut();
+            // self.buffer_ptr is a fat pointer — can't null it. Setting
+            // device to null is enough to prevent double-drop.
+            self.ctx = ptr::null_mut();
+        }
+    }
 }
 
 fn read_device_info(device: ffi::IOHIDDeviceRef) -> HidDeviceInfo {
