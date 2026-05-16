@@ -2,9 +2,7 @@
 
 Safe Rust bindings for Apple's [IOKit HID](https://developer.apple.com/documentation/iokit/iohidmanager_h) subsystem on macOS — enumerate connected mice, keyboards, gamepads, and other HID devices.
 
-> **Status:** actively developed. v0.5 ships the current public `IOHIDManager` / `IOHIDDevice` / `IOHIDElement` / `IOHIDValue` C header surface in raw FFI, plus safe wrappers for multi-match dictionaries, element discovery, report I/O, value access, report-descriptor reads, and live input callbacks.
-
-Pure C — **zero Swift bridge** (like `cgevents`, `imageio`, `videotoolbox`).
+> **Status:** actively developed. v0.6 ships a Swift bridge for `IOKit/hid`, keeps the raw C surface behind the `raw-ffi` feature (enabled by default), and adds logical-area coverage for Manager, Device, Element, Value, Transaction, Queue, Keys, Usage, ServicePlugIn, and EventSystem.
 
 ## Quick start
 
@@ -36,6 +34,62 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+## Highlights in v0.6
+
+- Swift bridge target under `swift-bridge/` with one Swift file per logical area.
+- `raw-ffi` Cargo feature (enabled by default) re-exporting the raw `IOKit/hid` declarations.
+- New safe transaction and queue wrappers: `HidTransaction`, `HidTransactionDirection`, `HidQueue`, and `HidQueueOptions`.
+- Manager matching helpers for input-value filtering.
+- Device helpers for multi-value reads/writes, removal callbacks, and timeout-based value/report setters.
+- Element attach/detach helpers.
+- `unsafe { HidValue::from_bytes_no_copy(...) }` bridged through Swift.
+- Generated `keys` and `usage` catalogs, event-system constants, and service-plugin UUID helpers.
+- 15 runnable examples and per-area smoke tests.
+
+## Feature flags
+
+- `raw-ffi` *(default)* — re-export the raw `iohidmanager::ffi` module.
+
+Disable default features if you only want the safe surface:
+
+```bash
+cargo add iohidmanager --no-default-features
+```
+
+## Area guide
+
+- **Manager** — device matching, properties, enumeration, and manager-level filtering.
+- **Device** — properties, reports, synchronous values, multi-value helpers, and removal subscriptions.
+- **Element** — hierarchy traversal, metadata, and attach/detach relationships.
+- **Value** — integer/byte constructors, no-copy bridge constructor, typed accessors.
+- **Transaction** — batched input/output element transactions.
+- **Queue** — buffered value delivery and queue depth management.
+- **Keys** — generated string/numeric key catalog from `IOHIDKeys.h`, `IOHIDDeviceKeys.h`, and `IOHIDProperties.h`.
+- **Usage** — generated usage/page constant catalog from `IOHIDUsageTables.h`.
+- **ServicePlugIn** — UUID helpers for the `IOHIDDevicePlugIn.h` interfaces.
+- **EventSystem** — `IOHIDEventServiceKeys.h` and `IOHIDEventServiceTypes.h` constants.
+
+## Examples
+
+The crate ships 15 examples, including:
+
+- `06_manager_callbacks`
+- `07_device_roundtrip`
+- `08_element_attachment`
+- `09_value_constructors`
+- `10_transaction_roundtrip`
+- `11_queue_roundtrip`
+- `12_keys_catalog`
+- `13_usage_catalog`
+- `14_service_plugin_ids`
+- `15_event_system_catalog`
+
+Run them all with:
+
+```bash
+for ex in examples/*.rs; do cargo run --example "$(basename "$ex" .rs)"; done
+```
+
 ## Pipeline composition
 
 ```text
@@ -51,18 +105,15 @@ Pairs naturally with [`cgevents`](https://github.com/doom-fish/cgevents-rs) (syn
 ## Roadmap
 
 - [x] `HidManager::new()` + open
-- [x] `set_device_matching(Option<HidUsage>)` convenience filter
 - [x] `DeviceMatch` / `ElementMatch` builders + multi-match dictionaries
-- [x] `devices()` enumeration with vendor/product/usage/serial/transport snapshots
-- [x] `live_devices()` handles for per-device work
-- [x] Live input-report callbacks (`on_input_report`, `on_input_report_with_timestamp`)
-- [x] Live input-value callbacks (`on_input_value`)
-- [x] Element discovery + metadata (`elements`, `matching_elements`, `HidElement` accessors)
-- [x] `HidValue` creation + synchronous reads (`get_value`, `get_value_with_options`)
-- [x] Synchronous report read / write (`get_report`, `set_report`)
-- [x] Generic property helpers + report-descriptor reads
-- [ ] Dispatch-queue convenience wrappers
-- [ ] Safe manager-level add/remove/value/report callback wrappers
+- [x] device enumeration and live device handles
+- [x] report/value callbacks on devices
+- [x] manager input-value matching helpers
+- [x] `HidTransaction` and `HidQueue`
+- [x] `unsafe HidValue::from_bytes_no_copy`
+- [x] generated keys/usage catalogs
+- [x] service-plugin UUID helpers and event-system constants
+- [x] Swift bridge + `raw-ffi` feature split
 
 ## License
 

@@ -6,7 +6,25 @@ use std::ffi::CString;
 use std::fmt;
 
 use crate::error::HidError;
-use crate::ffi;
+use crate::ffi_impl as ffi;
+
+pub mod device;
+pub mod element;
+pub mod event_system;
+pub mod keys;
+pub mod manager;
+pub mod queue;
+pub mod service_plugin;
+pub mod transaction;
+pub mod usage;
+pub mod value;
+
+pub use device::DeviceRemovalSubscription;
+pub use manager::{
+    ManagerDeviceSubscription, ManagerReportSubscription, ManagerValueSubscription,
+};
+pub use queue::{HidQueue, HidQueueOptions, QueueValueAvailableSubscription};
+pub use transaction::{HidTransaction, HidTransactionDirection, HidTransactionOptions};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]

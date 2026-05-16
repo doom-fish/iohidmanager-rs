@@ -100,3 +100,23 @@ fn iohid_value_coverage() {
         &extract_rust_externs(),
     );
 }
+
+#[test]
+fn iohid_transaction_coverage() {
+    let header = read_header("IOHIDTransaction");
+    report(
+        "IOHIDTransaction",
+        &extract_c_functions("IOHIDTransaction", &header),
+        &extract_rust_externs(),
+    );
+}
+
+#[test]
+fn iohid_queue_coverage() {
+    let header = read_header("IOHIDQueue");
+    report(
+        "IOHIDQueue",
+        &extract_c_functions("IOHIDQueue", &header),
+        &extract_rust_externs(),
+    );
+}

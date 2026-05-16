@@ -34,10 +34,13 @@ pub type IOHIDManagerRef = *mut c_void;
 pub type IOHIDDeviceRef = *mut c_void;
 pub type IOHIDElementRef = *mut c_void;
 pub type IOHIDValueRef = *mut c_void;
+pub type IOHIDQueueRef = *mut c_void;
+pub type IOHIDTransactionRef = *mut c_void;
 pub type IOReturn = i32;
 pub type IOOptionBits = u32;
 pub type IOHIDReportType = u32;
 pub type IOHIDValueScaleType = u32;
+pub type IOHIDTransactionDirectionType = u32;
 
 pub const kIOReturnSuccess: IOReturn = 0;
 
@@ -56,6 +59,13 @@ pub const kIOHIDReportTypeCount: IOHIDReportType = 3;
 pub const kIOHIDValueScaleTypeCalibrated: IOHIDValueScaleType = 0;
 pub const kIOHIDValueScaleTypePhysical: IOHIDValueScaleType = 1;
 pub const kIOHIDValueScaleTypeExponent: IOHIDValueScaleType = 2;
+pub const kIOHIDTransactionDirectionTypeInput: IOHIDTransactionDirectionType = 0;
+pub const kIOHIDTransactionDirectionTypeOutput: IOHIDTransactionDirectionType = 1;
+pub const kIOHIDTransactionOptionDefaultOutputValue: IOOptionBits = 0x0001;
+pub const kIOHIDTransactionOptionsNone: IOOptionBits = 0x0;
+pub const kIOHIDTransactionOptionsWeakDevice: IOOptionBits = 0x1;
+pub const kIOHIDQueueOptionsTypeNone: IOOptionBits = 0x00;
+pub const kIOHIDQueueOptionsTypeEnqueueAll: IOOptionBits = 0x01;
 
 pub const kIOHIDDeviceGetValueWithUpdate: u32 = 0x0002_0000;
 pub const kIOHIDDeviceGetValueWithoutUpdate: u32 = 0x0004_0000;
@@ -169,6 +179,12 @@ extern "C" {
         value: *const c_void,
     );
     pub fn CFDictionaryGetValue(d: CFDictionaryRef, key: *const c_void) -> *const c_void;
+    pub fn CFDictionaryGetCount(d: CFDictionaryRef) -> CFIndex;
+    pub fn CFDictionaryGetKeysAndValues(
+        d: CFDictionaryRef,
+        keys: *mut *const c_void,
+        values: *mut *const c_void,
+    );
 
     pub fn CFSetGetCount(set: CFSetRef) -> CFIndex;
     pub fn CFSetGetValues(set: CFSetRef, values: *mut *const c_void);
@@ -219,7 +235,7 @@ extern "C" {
     );
     pub fn IOHIDManagerRegisterInputReportWithTimeStampCallback(
         manager: IOHIDManagerRef,
-        callback: IOHIDReportWithTimeStampCallback,
+        callback: Option<IOHIDReportWithTimeStampCallback>,
         context: *mut c_void,
     );
     pub fn IOHIDManagerRegisterInputValueCallback(
@@ -384,7 +400,7 @@ extern "C" {
         report: *mut u8,
         report_length: *mut CFIndex,
         timeout: CFTimeInterval,
-        callback: IOHIDReportCallback,
+        callback: Option<IOHIDReportCallback>,
         context: *mut c_void,
     ) -> IOReturn;
 
@@ -455,6 +471,103 @@ extern "C" {
     pub fn IOHIDValueGetBytePtr(value: IOHIDValueRef) -> *const u8;
     pub fn IOHIDValueGetIntegerValue(value: IOHIDValueRef) -> CFIndex;
     pub fn IOHIDValueGetScaledValue(value: IOHIDValueRef, scale_type: IOHIDValueScaleType) -> f64;
+
+    pub fn IOHIDTransactionGetTypeID() -> CFTypeID;
+    pub fn IOHIDTransactionCreate(
+        allocator: CFAllocatorRef,
+        device: IOHIDDeviceRef,
+        direction: IOHIDTransactionDirectionType,
+        options: IOOptionBits,
+    ) -> IOHIDTransactionRef;
+    pub fn IOHIDTransactionGetDevice(transaction: IOHIDTransactionRef) -> IOHIDDeviceRef;
+    pub fn IOHIDTransactionGetDirection(
+        transaction: IOHIDTransactionRef,
+    ) -> IOHIDTransactionDirectionType;
+    pub fn IOHIDTransactionSetDirection(
+        transaction: IOHIDTransactionRef,
+        direction: IOHIDTransactionDirectionType,
+    );
+    pub fn IOHIDTransactionAddElement(
+        transaction: IOHIDTransactionRef,
+        element: IOHIDElementRef,
+    );
+    pub fn IOHIDTransactionRemoveElement(
+        transaction: IOHIDTransactionRef,
+        element: IOHIDElementRef,
+    );
+    pub fn IOHIDTransactionContainsElement(
+        transaction: IOHIDTransactionRef,
+        element: IOHIDElementRef,
+    ) -> bool;
+    pub fn IOHIDTransactionScheduleWithRunLoop(
+        transaction: IOHIDTransactionRef,
+        run_loop: CFRunLoopRef,
+        run_loop_mode: CFStringRef,
+    );
+    pub fn IOHIDTransactionUnscheduleFromRunLoop(
+        transaction: IOHIDTransactionRef,
+        run_loop: CFRunLoopRef,
+        run_loop_mode: CFStringRef,
+    );
+    pub fn IOHIDTransactionSetValue(
+        transaction: IOHIDTransactionRef,
+        element: IOHIDElementRef,
+        value: IOHIDValueRef,
+        options: IOOptionBits,
+    );
+    pub fn IOHIDTransactionGetValue(
+        transaction: IOHIDTransactionRef,
+        element: IOHIDElementRef,
+        options: IOOptionBits,
+    ) -> IOHIDValueRef;
+    pub fn IOHIDTransactionCommit(transaction: IOHIDTransactionRef) -> IOReturn;
+    pub fn IOHIDTransactionCommitWithCallback(
+        transaction: IOHIDTransactionRef,
+        timeout: CFTimeInterval,
+        callback: Option<IOHIDCallback>,
+        context: *mut c_void,
+    ) -> IOReturn;
+    pub fn IOHIDTransactionClear(transaction: IOHIDTransactionRef);
+
+    pub fn IOHIDQueueGetTypeID() -> CFTypeID;
+    pub fn IOHIDQueueCreate(
+        allocator: CFAllocatorRef,
+        device: IOHIDDeviceRef,
+        depth: CFIndex,
+        options: IOOptionBits,
+    ) -> IOHIDQueueRef;
+    pub fn IOHIDQueueGetDevice(queue: IOHIDQueueRef) -> IOHIDDeviceRef;
+    pub fn IOHIDQueueGetDepth(queue: IOHIDQueueRef) -> CFIndex;
+    pub fn IOHIDQueueSetDepth(queue: IOHIDQueueRef, depth: CFIndex);
+    pub fn IOHIDQueueAddElement(queue: IOHIDQueueRef, element: IOHIDElementRef);
+    pub fn IOHIDQueueRemoveElement(queue: IOHIDQueueRef, element: IOHIDElementRef);
+    pub fn IOHIDQueueContainsElement(queue: IOHIDQueueRef, element: IOHIDElementRef) -> bool;
+    pub fn IOHIDQueueStart(queue: IOHIDQueueRef);
+    pub fn IOHIDQueueStop(queue: IOHIDQueueRef);
+    pub fn IOHIDQueueScheduleWithRunLoop(
+        queue: IOHIDQueueRef,
+        run_loop: CFRunLoopRef,
+        run_loop_mode: CFStringRef,
+    );
+    pub fn IOHIDQueueUnscheduleFromRunLoop(
+        queue: IOHIDQueueRef,
+        run_loop: CFRunLoopRef,
+        run_loop_mode: CFStringRef,
+    );
+    pub fn IOHIDQueueSetDispatchQueue(queue: IOHIDQueueRef, dispatch_queue: dispatch_queue_t);
+    pub fn IOHIDQueueSetCancelHandler(queue: IOHIDQueueRef, handler: dispatch_block_t);
+    pub fn IOHIDQueueActivate(queue: IOHIDQueueRef);
+    pub fn IOHIDQueueCancel(queue: IOHIDQueueRef);
+    pub fn IOHIDQueueRegisterValueAvailableCallback(
+        queue: IOHIDQueueRef,
+        callback: Option<IOHIDCallback>,
+        context: *mut c_void,
+    );
+    pub fn IOHIDQueueCopyNextValue(queue: IOHIDQueueRef) -> IOHIDValueRef;
+    pub fn IOHIDQueueCopyNextValueWithTimeout(
+        queue: IOHIDQueueRef,
+        timeout: CFTimeInterval,
+    ) -> IOHIDValueRef;
 }
 
 pub const kIOHIDVendorIDKey: &str = "VendorID";

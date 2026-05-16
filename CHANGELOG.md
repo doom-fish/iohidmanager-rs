@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.6.0] - 2026-05-16
+
+### Added
+
+- Swift bridge build pipeline (`swift-bridge/`) with one bridge file per logical HID area.
+- `raw-ffi` feature (enabled by default) for the raw `iohidmanager::ffi` surface.
+- New safe logical areas and exports:
+  - `HidTransaction`, `HidTransactionDirection`, and `HidTransactionOptions`
+  - `HidQueue`, `HidQueueOptions`, and queue value-available subscriptions
+  - generated `keys` and `usage` catalogs
+  - service-plugin UUID helpers and event-system constants
+- Manager helpers for input-value matching configuration.
+- Device helpers for removal subscriptions, multi-value reads/writes, and timeout-based setters.
+- `HidElement::attach` / `detach`.
+- `unsafe HidValue::from_bytes_no_copy` via the Swift bridge.
+- 10 new numbered examples covering the new logical areas.
+- 10 new per-area smoke tests plus queue/transaction additions to API coverage validation.
+- `COVERAGE.md` documenting header coverage across the HID framework areas.
+
+### Changed
+
+- The crate now builds and links a small Swift bridge alongside the Rust library.
+- README now documents the v0.6 logical-area split and `raw-ffi` feature.
+- Package contents now include the Swift bridge and coverage document.
+
 ## [0.5.0] - 2026-05-16
 
 ### Added
