@@ -84,7 +84,65 @@ extern "C" {
 
     // IOHIDDevice
     pub fn IOHIDDeviceGetProperty(device: IOHIDDeviceRef, key: CFStringRef) -> CFTypeRef;
+    pub fn IOHIDDeviceOpen(device: IOHIDDeviceRef, options: IOOptionBits) -> IOReturn;
+    pub fn IOHIDDeviceClose(device: IOHIDDeviceRef, options: IOOptionBits) -> IOReturn;
+    pub fn IOHIDDeviceRegisterInputReportCallback(
+        device: IOHIDDeviceRef,
+        report: *mut u8,
+        report_length: CFIndex,
+        callback: IOHIDReportCallback,
+        context: *mut c_void,
+    );
+    pub fn IOHIDDeviceUnregisterInputReportCallback(
+        device: IOHIDDeviceRef,
+        report: *mut u8,
+        report_length: CFIndex,
+        callback: IOHIDReportCallback,
+        context: *mut c_void,
+    );
+    pub fn IOHIDDeviceScheduleWithRunLoop(
+        device: IOHIDDeviceRef,
+        run_loop: *mut c_void,
+        run_loop_mode: CFStringRef,
+    );
+    pub fn IOHIDDeviceUnscheduleFromRunLoop(
+        device: IOHIDDeviceRef,
+        run_loop: *mut c_void,
+        run_loop_mode: CFStringRef,
+    );
+
+    // IOHIDManager run-loop scheduling + input-report callbacks
+    pub fn IOHIDManagerScheduleWithRunLoop(
+        manager: IOHIDManagerRef,
+        run_loop: *mut c_void,
+        run_loop_mode: CFStringRef,
+    );
+    pub fn IOHIDManagerUnscheduleFromRunLoop(
+        manager: IOHIDManagerRef,
+        run_loop: *mut c_void,
+        run_loop_mode: CFStringRef,
+    );
+    pub fn IOHIDManagerRegisterInputReportCallback(
+        manager: IOHIDManagerRef,
+        callback: IOHIDReportCallback,
+        context: *mut c_void,
+    );
+
+    // Run-loop
+    pub fn CFRunLoopGetCurrent() -> *mut c_void;
+    pub static kCFRunLoopDefaultMode: CFStringRef;
 }
+
+pub type IOHIDReportType = u32;
+pub type IOHIDReportCallback = unsafe extern "C" fn(
+    context: *mut c_void,
+    result: IOReturn,
+    sender: *mut c_void,
+    report_type: IOHIDReportType,
+    report_id: u32,
+    report: *mut u8,
+    report_length: CFIndex,
+);
 
 // HID property keys — defined as CFStrings in IOHIDKeys.h. The values
 // below are the canonical UTF-8 string literals.
