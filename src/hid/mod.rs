@@ -288,6 +288,106 @@ impl HidDevice {
             ctx: ctx_raw,
         })
     }
+
+    /// Enumerate all HID elements on this device (axes, buttons,
+    /// keys, dials, gyros, …).
+    #[must_use]
+    pub fn elements(&self) -> Vec<HidElement> {
+        let arr = unsafe {
+            ffi::IOHIDDeviceCopyMatchingElements(
+                self.raw,
+                core::ptr::null(),
+                ffi::kIOHIDOptionsTypeNone,
+            )
+        };
+        if arr.is_null() {
+            return Vec::new();
+        }
+        let n = unsafe { ffi::CFArrayGetCount(arr) };
+        let mut v = Vec::with_capacity(usize::try_from(n).unwrap_or(0));
+        for i in 0..n {
+            let p = unsafe { ffi::CFArrayGetValueAtIndex(arr, i) };
+            if p.is_null() {
+                continue;
+            }
+            v.push(HidElement {
+                raw: p.cast_mut(),
+            });
+        }
+        unsafe { ffi::CFRelease(arr) };
+        v
+    }
+}
+
+/// One element on a [`HidDevice`] — an axis, button, key, dial, gyro,
+/// trigger, etc. Wraps `IOHIDElementRef`.
+#[derive(Debug, Clone, Copy)]
+pub struct HidElement {
+    raw: ffi::IOHIDElementRef,
+}
+
+unsafe impl Send for HidElement {}
+unsafe impl Sync for HidElement {}
+
+impl HidElement {
+    /// `IOHIDElementType` raw value.
+    /// `1 = misc, 2 = button, 3 = axis, 4 = scancodes, 0x80 = output,
+    /// 0x81 = feature, 0x82 = collection`.
+    #[must_use]
+    pub fn element_type(&self) -> i32 {
+        unsafe { ffi::IOHIDElementGetType(self.raw) }
+    }
+
+    /// HID usage code (e.g. button id, axis index).
+    #[must_use]
+    pub fn usage(&self) -> u32 {
+        unsafe { ffi::IOHIDElementGetUsage(self.raw) }
+    }
+
+    /// HID usage page (`1 = generic desktop`, `7 = keyboard/keypad`,
+    /// `9 = button`, `12 = consumer`).
+    #[must_use]
+    pub fn usage_page(&self) -> u32 {
+        unsafe { ffi::IOHIDElementGetUsagePage(self.raw) }
+    }
+
+    /// Opaque cookie that uniquely identifies this element on its
+    /// parent device.
+    #[must_use]
+    pub fn cookie(&self) -> u32 {
+        unsafe { ffi::IOHIDElementGetCookie(self.raw) }
+    }
+
+    /// Minimum logical value the element can report.
+    #[must_use]
+    pub fn logical_min(&self) -> i64 {
+        unsafe { ffi::IOHIDElementGetLogicalMin(self.raw) }
+    }
+
+    /// Maximum logical value the element can report.
+    #[must_use]
+    pub fn logical_max(&self) -> i64 {
+        unsafe { ffi::IOHIDElementGetLogicalMax(self.raw) }
+    }
+
+    /// Report size in bits.
+    #[must_use]
+    pub fn report_size_bits(&self) -> u32 {
+        unsafe { ffi::IOHIDElementGetReportSize(self.raw) }
+    }
+
+    /// True if this element reports relative values (mouse deltas)
+    /// rather than absolute (joystick position).
+    #[must_use]
+    pub fn is_relative(&self) -> bool {
+        unsafe { ffi::IOHIDElementIsRelative(self.raw) }
+    }
+
+    /// Raw `IOHIDElementRef`.
+    #[must_use]
+    pub const fn as_ptr(&self) -> ffi::IOHIDElementRef {
+        self.raw
+    }
 }
 
 #[allow(clippy::struct_field_names, clippy::type_complexity, clippy::cast_possible_wrap, clippy::module_name_repetitions, dead_code)]

@@ -17,6 +17,8 @@ pub type CFIndex = isize;
 
 pub type IOHIDManagerRef = *mut c_void;
 pub type IOHIDDeviceRef = *mut c_void;
+pub type IOHIDElementRef = *mut c_void;
+pub type CFArrayRef = *const c_void;
 pub type IOReturn = i32;
 pub type IOOptionBits = u32;
 
@@ -84,6 +86,26 @@ extern "C" {
 
     // IOHIDDevice
     pub fn IOHIDDeviceGetProperty(device: IOHIDDeviceRef, key: CFStringRef) -> CFTypeRef;
+    pub fn IOHIDDeviceSetProperty(
+        device: IOHIDDeviceRef,
+        key: CFStringRef,
+        value: CFTypeRef,
+    ) -> bool;
+    pub fn IOHIDDeviceCopyMatchingElements(
+        device: IOHIDDeviceRef,
+        matching: CFDictionaryRef,
+        options: IOOptionBits,
+    ) -> CFArrayRef;
+
+    pub fn IOHIDElementGetType(element: IOHIDElementRef) -> i32;
+    pub fn IOHIDElementGetUsage(element: IOHIDElementRef) -> u32;
+    pub fn IOHIDElementGetUsagePage(element: IOHIDElementRef) -> u32;
+    pub fn IOHIDElementGetCookie(element: IOHIDElementRef) -> u32;
+    pub fn IOHIDElementGetLogicalMin(element: IOHIDElementRef) -> i64;
+    pub fn IOHIDElementGetLogicalMax(element: IOHIDElementRef) -> i64;
+    pub fn IOHIDElementGetReportSize(element: IOHIDElementRef) -> u32;
+    pub fn IOHIDElementIsRelative(element: IOHIDElementRef) -> bool;
+
     pub fn IOHIDDeviceOpen(device: IOHIDDeviceRef, options: IOOptionBits) -> IOReturn;
     pub fn IOHIDDeviceClose(device: IOHIDDeviceRef, options: IOOptionBits) -> IOReturn;
     pub fn IOHIDDeviceRegisterInputReportCallback(
@@ -131,6 +153,9 @@ extern "C" {
     // Run-loop
     pub fn CFRunLoopGetCurrent() -> *mut c_void;
     pub static kCFRunLoopDefaultMode: CFStringRef;
+
+    pub fn CFArrayGetCount(array: CFArrayRef) -> isize;
+    pub fn CFArrayGetValueAtIndex(array: CFArrayRef, index: isize) -> *const c_void;
 }
 
 pub type IOHIDReportType = u32;
