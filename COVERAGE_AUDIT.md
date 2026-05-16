@@ -3,10 +3,10 @@
 > Audit scope: full `IOKit.framework/Headers/hid/*` public surface. `15` legacy symbols from `IOHIDLibObsolete.h` are classified EXEMPT.
 
 SDK_PUBLIC_SYMBOLS: 2795
-VERIFIED: 2722
-GAPS: 58
+VERIFIED: 2780
+GAPS: 0
 EXEMPT: 15
-COVERAGE_PCT: 97.91%
+COVERAGE_PCT: 100.00%
 
 ## 🟢 VERIFIED
 | Symbol | Kind | Header | Wrapped by |
@@ -2733,68 +2733,68 @@ COVERAGE_PCT: 97.91%
 | `IOHIDValueGetScaledValue` | function | `IOHIDValue.h` | `HidValue` / `ffi::IOHIDValueGetScaledValue` |
 | `IOHIDValueGetTimeStamp` | function | `IOHIDValue.h` | `HidValue` / `ffi::IOHIDValueGetTimeStamp` |
 | `IOHIDValueGetTypeID` | function | `IOHIDValue.h` | `HidValue` / `ffi::IOHIDValueGetTypeID` |
+| `IOHIDDeviceGetValueOptions` | enum | `IOHIDDevice.h` | `hid::IOHIDDeviceGetValueOptions` / `ffi::IOHIDDeviceGetValueOptions` |
+| `IOHIDDeviceDeviceInterface` | struct | `IOHIDDevicePlugIn.h` | `service_plugin::IOHIDDeviceDeviceInterface` / `ffi::IOHIDDeviceDeviceInterface` |
+| `IOHIDDeviceQueueInterface` | struct | `IOHIDDevicePlugIn.h` | `service_plugin::IOHIDDeviceQueueInterface` / `ffi::IOHIDDeviceQueueInterface` |
+| `IOHIDDeviceTimeStampedDeviceInterface` | struct | `IOHIDDevicePlugIn.h` | `service_plugin::IOHIDDeviceTimeStampedDeviceInterface` / `ffi::IOHIDDeviceTimeStampedDeviceInterface` |
+| `IOHIDDeviceTransactionInterface` | struct | `IOHIDDevicePlugIn.h` | `service_plugin::IOHIDDeviceTransactionInterface` / `ffi::IOHIDDeviceTransactionInterface` |
+| `HIDReportCommandType` | enum | `IOHIDDeviceTypes.h` | `hid::HIDReportCommandType` / `ffi::HIDReportCommandType` |
+| `IOHIDCompletion` | struct | `IOHIDDeviceTypes.h` | `hid::IOHIDCompletion` / `ffi::IOHIDCompletion` |
+| `IOHIDCompletionAction` | callback typedef | `IOHIDDeviceTypes.h` | `hid::IOHIDCompletionAction` / `ffi::IOHIDCompletionAction` |
+| `IOHIDElementCommitDirection` | enum | `IOHIDDeviceTypes.h` | `hid::IOHIDElementCommitDirection` / `ffi::IOHIDElementCommitDirection` |
+| `IOHIDElementCookie` | typedef | `IOHIDDeviceTypes.h` | `hid::IOHIDElementCookie` / `ffi::IOHIDElementCookie` |
+| `IOHIDElementFlags` | typedef | `IOHIDDeviceTypes.h` | `hid::IOHIDElementFlags` / `ffi::IOHIDElementFlags` |
+| `IOHIDValueOptions` | typedef | `IOHIDDeviceTypes.h` | `hid::IOHIDValueOptions` / `ffi::IOHIDValueOptions` |
+| `kIOHIDDeviceDefaultAsyncRequestTimeout` | macro | `IOHIDDeviceTypes.h` | `hid::DEVICE_DEFAULT_ASYNC_REQUEST_TIMEOUT` / `ffi::kIOHIDDeviceDefaultAsyncRequestTimeout` |
+| `kIOHIDDeviceMaxAsyncRequestTimeout` | macro | `IOHIDDeviceTypes.h` | `hid::DEVICE_MAX_ASYNC_REQUEST_TIMEOUT` / `ffi::kIOHIDDeviceMaxAsyncRequestTimeout` |
+| `kIOHIDDeviceMinAsyncRequestTimeout` | macro | `IOHIDDeviceTypes.h` | `hid::DEVICE_MIN_ASYNC_REQUEST_TIMEOUT` / `ffi::kIOHIDDeviceMinAsyncRequestTimeout` |
+| `kIOHIDElementCommitDirectionIn` | enum constant | `IOHIDDeviceTypes.h` | `hid::ELEMENT_COMMIT_DIRECTION_IN` / `ffi::kIOHIDElementCommitDirectionIn` |
+| `kIOHIDElementCommitDirectionOut` | enum constant | `IOHIDDeviceTypes.h` | `hid::ELEMENT_COMMIT_DIRECTION_OUT` / `ffi::kIOHIDElementCommitDirectionOut` |
+| `kIOHIDElementFlagsBufferedByteMask` | enum constant | `IOHIDDeviceTypes.h` | `hid::ELEMENT_FLAGS_BUFFERED_BYTE_MASK` / `ffi::kIOHIDElementFlagsBufferedByteMask` |
+| `kIOHIDElementFlagsConstantMask` | enum constant | `IOHIDDeviceTypes.h` | `hid::ELEMENT_FLAGS_CONSTANT_MASK` / `ffi::kIOHIDElementFlagsConstantMask` |
+| `kIOHIDElementFlagsNoPreferredMask` | enum constant | `IOHIDDeviceTypes.h` | `hid::ELEMENT_FLAGS_NO_PREFERRED_MASK` / `ffi::kIOHIDElementFlagsNoPreferredMask` |
+| `kIOHIDElementFlagsNonLinearMask` | enum constant | `IOHIDDeviceTypes.h` | `hid::ELEMENT_FLAGS_NON_LINEAR_MASK` / `ffi::kIOHIDElementFlagsNonLinearMask` |
+| `kIOHIDElementFlagsNullStateMask` | enum constant | `IOHIDDeviceTypes.h` | `hid::ELEMENT_FLAGS_NULL_STATE_MASK` / `ffi::kIOHIDElementFlagsNullStateMask` |
+| `kIOHIDElementFlagsRelativeMask` | enum constant | `IOHIDDeviceTypes.h` | `hid::ELEMENT_FLAGS_RELATIVE_MASK` / `ffi::kIOHIDElementFlagsRelativeMask` |
+| `kIOHIDElementFlagsVariableMask` | enum constant | `IOHIDDeviceTypes.h` | `hid::ELEMENT_FLAGS_VARIABLE_MASK` / `ffi::kIOHIDElementFlagsVariableMask` |
+| `kIOHIDElementFlagsVolativeMask` | enum constant | `IOHIDDeviceTypes.h` | `hid::ELEMENT_FLAGS_VOLATIVE_MASK` / `ffi::kIOHIDElementFlagsVolativeMask` |
+| `kIOHIDElementFlagsWrapMask` | enum constant | `IOHIDDeviceTypes.h` | `hid::ELEMENT_FLAGS_WRAP_MASK` / `ffi::kIOHIDElementFlagsWrapMask` |
+| `kIOHIDReportCommandGetReport` | enum constant | `IOHIDDeviceTypes.h` | `hid::REPORT_COMMAND_GET_REPORT` / `ffi::kIOHIDReportCommandGetReport` |
+| `kIOHIDReportCommandSetReport` | enum constant | `IOHIDDeviceTypes.h` | `hid::REPORT_COMMAND_SET_REPORT` / `ffi::kIOHIDReportCommandSetReport` |
+| `kIOHIDReportOptionNotInterrupt` | enum constant | `IOHIDDeviceTypes.h` | `hid::REPORT_OPTION_NOT_INTERRUPT` / `ffi::kIOHIDReportOptionNotInterrupt` |
+| `kIOHIDReportOptionVariableSize` | enum constant | `IOHIDDeviceTypes.h` | `hid::REPORT_OPTION_VARIABLE_SIZE` / `ffi::kIOHIDReportOptionVariableSize` |
+| `kIOHIDValueOptionsFlagPrevious` | enum constant | `IOHIDDeviceTypes.h` | `hid::VALUE_OPTIONS_FLAG_PREVIOUS` / `ffi::kIOHIDValueOptionsFlagPrevious` |
+| `kIOHIDValueOptionsFlagRelativeSimple` | enum constant | `IOHIDDeviceTypes.h` | `hid::VALUE_OPTIONS_FLAG_RELATIVE_SIMPLE` / `ffi::kIOHIDValueOptionsFlagRelativeSimple` |
+| `kIOHIDValueOptionsUpdateElementValues` | enum constant | `IOHIDDeviceTypes.h` | `hid::VALUE_OPTIONS_UPDATE_ELEMENT_VALUES` / `ffi::kIOHIDValueOptionsUpdateElementValues` |
+| `kHIDAccelParametricCurvesKey` | macro | `IOHIDEventServiceKeys.h` | `event_system::ALL_EVENT_SYSTEM_KEYS` / `event_system::ACCEL_PARAMETRIC_CURVES_KEY` |
+| `kHIDScrollAccelParametricCurvesKey` | macro | `IOHIDEventServiceKeys.h` | `event_system::ALL_EVENT_SYSTEM_KEYS` / `event_system::SCROLL_ACCEL_PARAMETRIC_CURVES_KEY` |
+| `kIOHIDDropAccelPropertyEventsKey` | macro | `IOHIDEventServiceKeys.h` | `event_system::ALL_EVENT_SYSTEM_KEYS` / `event_system::DROP_ACCEL_PROPERTY_EVENTS_KEY` |
+| `kIOHIDScrollResolutionKey` | macro | `IOHIDEventServiceKeys.h` | `event_system::ALL_EVENT_SYSTEM_KEYS` / `event_system::SCROLL_RESOLUTION_KEY` |
+| `kIOHIDScrollResolutionXKey` | macro | `IOHIDEventServiceKeys.h` | `event_system::ALL_EVENT_SYSTEM_KEYS` / `event_system::SCROLL_RESOLUTION_X_KEY` |
+| `kIOHIDScrollResolutionYKey` | macro | `IOHIDEventServiceKeys.h` | `event_system::ALL_EVENT_SYSTEM_KEYS` / `event_system::SCROLL_RESOLUTION_Y_KEY` |
+| `kIOHIDScrollResolutionZKey` | macro | `IOHIDEventServiceKeys.h` | `event_system::ALL_EVENT_SYSTEM_KEYS` / `event_system::SCROLL_RESOLUTION_Z_KEY` |
+| `kIOHIDUseLinearScalingMouseAccelerationKey` | macro | `IOHIDEventServiceKeys.h` | `event_system::ALL_EVENT_SYSTEM_KEYS` / `event_system::USE_LINEAR_SCALING_MOUSE_ACCELERATION_KEY` |
+| `IOHIDKeyboardEventOptions` | enum | `IOHIDEventServiceTypes.h` | `event_system::IOHIDKeyboardEventOptions` / `ffi::IOHIDKeyboardEventOptions` |
+| `IOHIDPointerEventOptions` | enum | `IOHIDEventServiceTypes.h` | `event_system::IOHIDPointerEventOptions` / `ffi::IOHIDPointerEventOptions` |
+| `IOHIDScrollEventOptions` | enum | `IOHIDEventServiceTypes.h` | `event_system::IOHIDScrollEventOptions` / `ffi::IOHIDScrollEventOptions` |
+| `IOHIDServiceSensorControlOptions` | enum | `IOHIDEventServiceTypes.h` | `event_system::IOHIDServiceSensorControlOptions` / `ffi::IOHIDServiceSensorControlOptions` |
+| `IOHIDAccelerationAlgorithmType` | typedef | `IOHIDKeys.h` | `keys::IOHIDAccelerationAlgorithmType` / `ffi::IOHIDAccelerationAlgorithmType` |
+| `IOHIDKeyboardPhysicalLayoutType` | typedef | `IOHIDKeys.h` | `keys::IOHIDKeyboardPhysicalLayoutType` / `ffi::IOHIDKeyboardPhysicalLayoutType` |
+| `IOHIDOptionsType` | typedef | `IOHIDKeys.h` | `keys::IOHIDOptionsType` / `ffi::IOHIDOptionsType` |
+| `IOHIDStandardType` | typedef | `IOHIDKeys.h` | `keys::IOHIDStandardType` / `ffi::IOHIDStandardType` |
+| `kIOHIDElementVendorSpecificKey` | macro | `IOHIDKeys.h` | `keys::ALL_STRING_KEYS` / `keys::ELEMENT_VENDOR_SPECIFIC_KEY` |
+| `kIOHIDSystemButtonPressedDuringDarkBoot` | macro | `IOHIDKeys.h` | `keys::ALL_NUMERIC_CONSTANTS` / `keys::SYSTEM_BUTTON_PRESSED_DURING_DARK_BOOT` |
+| `IOHIDManagerOptions` | enum | `IOHIDManager.h` | `hid::IOHIDManagerOptions` / `HidManagerOptions` / `ffi::IOHIDManagerOptions` |
+| `kIOHIDManagerOptionDoNotLoadProperties` | enum constant | `IOHIDManager.h` | `HidManagerOptions::DO_NOT_LOAD_PROPERTIES` / `ffi::kIOHIDManagerOptionDoNotLoadProperties` |
+| `kIOHIDManagerOptionDoNotSaveProperties` | enum constant | `IOHIDManager.h` | `HidManagerOptions::DO_NOT_SAVE_PROPERTIES` / `ffi::kIOHIDManagerOptionDoNotSaveProperties` |
+| `kIOHIDManagerOptionIndependentDevices` | enum constant | `IOHIDManager.h` | `HidManagerOptions::INDEPENDENT_DEVICES` / `ffi::kIOHIDManagerOptionIndependentDevices` |
+| `kIOHIDManagerOptionNone` | enum constant | `IOHIDManager.h` | `HidManagerOptions::NONE` / `ffi::kIOHIDManagerOptionNone` |
+| `kIOHIDManagerOptionUsePersistentProperties` | enum constant | `IOHIDManager.h` | `HidManagerOptions::USE_PERSISTENT_PROPERTIES` / `ffi::kIOHIDManagerOptionUsePersistentProperties` |
+| `kHIDUsage_GD_SystemMenu` | enum constant | `IOHIDUsageTables.h` | `usage::ALL_USAGE_CONSTANTS` / `usage::USAGE_SYSTEM_MENU` / `usage::constant("kHIDUsage_GD_SystemMenu")` |
 
 ## 🔴 GAPS
 | Symbol | Kind | Header | Notes |
 | --- | --- | --- | --- |
-| `IOHIDDeviceGetValueOptions` | enum | `IOHIDDevice.h` | The get-value option constants are present, but the enum type itself is not surfaced as a public Rust alias/newtype. |
-| `IOHIDDeviceDeviceInterface` | struct | `IOHIDDevicePlugIn.h` | UUID discovery is exposed via `service_plugin::ServicePlugInUuid`, but the CFPlugIn vtable struct itself is not wrapped. |
-| `IOHIDDeviceQueueInterface` | struct | `IOHIDDevicePlugIn.h` | UUID discovery is exposed via `service_plugin::ServicePlugInUuid`, but the CFPlugIn vtable struct itself is not wrapped. |
-| `IOHIDDeviceTimeStampedDeviceInterface` | struct | `IOHIDDevicePlugIn.h` | UUID discovery is exposed via `service_plugin::ServicePlugInUuid`, but the CFPlugIn vtable struct itself is not wrapped. |
-| `IOHIDDeviceTransactionInterface` | struct | `IOHIDDevicePlugIn.h` | UUID discovery is exposed via `service_plugin::ServicePlugInUuid`, but the CFPlugIn vtable struct itself is not wrapped. |
-| `HIDReportCommandType` | enum | `IOHIDDeviceTypes.h` | Low-level report command/option enums from `IOHIDDeviceTypes.h` are not exposed. |
-| `IOHIDCompletion` | struct | `IOHIDDeviceTypes.h` | Completion callback structs/types from `IOHIDDeviceTypes.h` are not exposed. |
-| `IOHIDCompletionAction` | callback typedef | `IOHIDDeviceTypes.h` | Completion callback structs/types from `IOHIDDeviceTypes.h` are not exposed. |
-| `IOHIDElementCommitDirection` | enum | `IOHIDDeviceTypes.h` | The element-commit direction enum used by lower-level report commit APIs is not wrapped. |
-| `IOHIDElementCookie` | typedef | `IOHIDDeviceTypes.h` | `HidElement::cookie()` returns a `u32`, but there is no public `IOHIDElementCookie` alias. |
-| `IOHIDElementFlags` | typedef | `IOHIDDeviceTypes.h` | Safe APIs expose individual boolean queries, but the raw element-flags bitmask surface is not exported. |
-| `IOHIDValueOptions` | typedef | `IOHIDDeviceTypes.h` | Value-option bitmask definitions are not exposed as public Rust constants/types. |
-| `kIOHIDDeviceDefaultAsyncRequestTimeout` | macro | `IOHIDDeviceTypes.h` | Low-level async timeout constants from `IOHIDDeviceTypes.h` are not exposed. |
-| `kIOHIDDeviceMaxAsyncRequestTimeout` | macro | `IOHIDDeviceTypes.h` | Low-level async timeout constants from `IOHIDDeviceTypes.h` are not exposed. |
-| `kIOHIDDeviceMinAsyncRequestTimeout` | macro | `IOHIDDeviceTypes.h` | Low-level async timeout constants from `IOHIDDeviceTypes.h` are not exposed. |
-| `kIOHIDElementCommitDirectionIn` | enum constant | `IOHIDDeviceTypes.h` | The element-commit direction enum used by lower-level report commit APIs is not wrapped. |
-| `kIOHIDElementCommitDirectionOut` | enum constant | `IOHIDDeviceTypes.h` | The element-commit direction enum used by lower-level report commit APIs is not wrapped. |
-| `kIOHIDElementFlagsBufferedByteMask` | enum constant | `IOHIDDeviceTypes.h` | Safe APIs expose individual boolean queries, but the raw element-flags bitmask surface is not exported. |
-| `kIOHIDElementFlagsConstantMask` | enum constant | `IOHIDDeviceTypes.h` | Safe APIs expose individual boolean queries, but the raw element-flags bitmask surface is not exported. |
-| `kIOHIDElementFlagsNoPreferredMask` | enum constant | `IOHIDDeviceTypes.h` | Safe APIs expose individual boolean queries, but the raw element-flags bitmask surface is not exported. |
-| `kIOHIDElementFlagsNonLinearMask` | enum constant | `IOHIDDeviceTypes.h` | Safe APIs expose individual boolean queries, but the raw element-flags bitmask surface is not exported. |
-| `kIOHIDElementFlagsNullStateMask` | enum constant | `IOHIDDeviceTypes.h` | Safe APIs expose individual boolean queries, but the raw element-flags bitmask surface is not exported. |
-| `kIOHIDElementFlagsRelativeMask` | enum constant | `IOHIDDeviceTypes.h` | Safe APIs expose individual boolean queries, but the raw element-flags bitmask surface is not exported. |
-| `kIOHIDElementFlagsVariableMask` | enum constant | `IOHIDDeviceTypes.h` | Safe APIs expose individual boolean queries, but the raw element-flags bitmask surface is not exported. |
-| `kIOHIDElementFlagsVolativeMask` | enum constant | `IOHIDDeviceTypes.h` | Safe APIs expose individual boolean queries, but the raw element-flags bitmask surface is not exported. |
-| `kIOHIDElementFlagsWrapMask` | enum constant | `IOHIDDeviceTypes.h` | Safe APIs expose individual boolean queries, but the raw element-flags bitmask surface is not exported. |
-| `kIOHIDReportCommandGetReport` | enum constant | `IOHIDDeviceTypes.h` | Low-level report command/option enums from `IOHIDDeviceTypes.h` are not exposed. |
-| `kIOHIDReportCommandSetReport` | enum constant | `IOHIDDeviceTypes.h` | Low-level report command/option enums from `IOHIDDeviceTypes.h` are not exposed. |
-| `kIOHIDReportOptionNotInterrupt` | enum constant | `IOHIDDeviceTypes.h` | Low-level report command/option enums from `IOHIDDeviceTypes.h` are not exposed. |
-| `kIOHIDReportOptionVariableSize` | enum constant | `IOHIDDeviceTypes.h` | Low-level report command/option enums from `IOHIDDeviceTypes.h` are not exposed. |
-| `kIOHIDValueOptionsFlagPrevious` | enum constant | `IOHIDDeviceTypes.h` | Value-option bitmask definitions are not exposed as public Rust constants/types. |
-| `kIOHIDValueOptionsFlagRelativeSimple` | enum constant | `IOHIDDeviceTypes.h` | Value-option bitmask definitions are not exposed as public Rust constants/types. |
-| `kIOHIDValueOptionsUpdateElementValues` | enum constant | `IOHIDDeviceTypes.h` | Value-option bitmask definitions are not exposed as public Rust constants/types. |
-| `kHIDAccelParametricCurvesKey` | macro | `IOHIDEventServiceKeys.h` | Missing from `hid::event_system::ALL_EVENT_SYSTEM_KEYS`. |
-| `kHIDScrollAccelParametricCurvesKey` | macro | `IOHIDEventServiceKeys.h` | Missing from `hid::event_system::ALL_EVENT_SYSTEM_KEYS`. |
-| `kIOHIDDropAccelPropertyEventsKey` | macro | `IOHIDEventServiceKeys.h` | Missing from `hid::event_system::ALL_EVENT_SYSTEM_KEYS`. |
-| `kIOHIDScrollResolutionKey` | macro | `IOHIDEventServiceKeys.h` | Missing from `hid::event_system::ALL_EVENT_SYSTEM_KEYS`. |
-| `kIOHIDScrollResolutionXKey` | macro | `IOHIDEventServiceKeys.h` | Missing from `hid::event_system::ALL_EVENT_SYSTEM_KEYS`. |
-| `kIOHIDScrollResolutionYKey` | macro | `IOHIDEventServiceKeys.h` | Missing from `hid::event_system::ALL_EVENT_SYSTEM_KEYS`. |
-| `kIOHIDScrollResolutionZKey` | macro | `IOHIDEventServiceKeys.h` | Missing from `hid::event_system::ALL_EVENT_SYSTEM_KEYS`. |
-| `kIOHIDUseLinearScalingMouseAccelerationKey` | macro | `IOHIDEventServiceKeys.h` | Missing from `hid::event_system::ALL_EVENT_SYSTEM_KEYS`. |
-| `IOHIDKeyboardEventOptions` | enum | `IOHIDEventServiceTypes.h` | The module exposes renamed numeric constants, but no public Rust type mirrors this SDK enum. |
-| `IOHIDPointerEventOptions` | enum | `IOHIDEventServiceTypes.h` | The module exposes renamed numeric constants, but no public Rust type mirrors this SDK enum. |
-| `IOHIDScrollEventOptions` | enum | `IOHIDEventServiceTypes.h` | The module exposes renamed numeric constants, but no public Rust type mirrors this SDK enum. |
-| `IOHIDServiceSensorControlOptions` | enum | `IOHIDEventServiceTypes.h` | The module exposes renamed numeric constants, but no public Rust type mirrors this SDK enum. |
-| `IOHIDAccelerationAlgorithmType` | typedef | `IOHIDKeys.h` | Related numeric constants exist in `hid::keys`, but the SDK typedef itself is not exposed as a public Rust type. |
-| `IOHIDKeyboardPhysicalLayoutType` | typedef | `IOHIDKeys.h` | Related numeric constants exist in `hid::keys`, but the SDK typedef itself is not exposed as a public Rust type. |
-| `IOHIDOptionsType` | typedef | `IOHIDKeys.h` | Raw option constants are available, but no public `IOHIDOptionsType` alias/newtype is exported. |
-| `IOHIDStandardType` | typedef | `IOHIDKeys.h` | Related numeric constants exist in `hid::keys`, but the SDK typedef itself is not exposed as a public Rust type. |
-| `kIOHIDElementVendorSpecificKey` | macro | `IOHIDKeys.h` | Missing from the generated `hid::keys` string-key catalog. |
-| `kIOHIDSystemButtonPressedDuringDarkBoot` | macro | `IOHIDKeys.h` | Missing from the generated `hid::keys` string-key catalog. |
-| `IOHIDManagerOptions` | enum | `IOHIDManager.h` | The safe manager API uses default/raw option bits only; `IOHIDManagerOptions` and its flags are not surfaced. |
-| `kIOHIDManagerOptionDoNotLoadProperties` | enum constant | `IOHIDManager.h` | The safe manager API uses default/raw option bits only; `IOHIDManagerOptions` and its flags are not surfaced. |
-| `kIOHIDManagerOptionDoNotSaveProperties` | enum constant | `IOHIDManager.h` | The safe manager API uses default/raw option bits only; `IOHIDManagerOptions` and its flags are not surfaced. |
-| `kIOHIDManagerOptionIndependentDevices` | enum constant | `IOHIDManager.h` | The safe manager API uses default/raw option bits only; `IOHIDManagerOptions` and its flags are not surfaced. |
-| `kIOHIDManagerOptionNone` | enum constant | `IOHIDManager.h` | The safe manager API uses default/raw option bits only; `IOHIDManagerOptions` and its flags are not surfaced. |
-| `kIOHIDManagerOptionUsePersistentProperties` | enum constant | `IOHIDManager.h` | The safe manager API uses default/raw option bits only; `IOHIDManagerOptions` and its flags are not surfaced. |
-| `kHIDUsage_GD_SystemMenu` | enum constant | `IOHIDUsageTables.h` | `hid::usage` includes the concrete `SystemMenu*` entries, but not the alias constant `kHIDUsage_GD_SystemMenu`. |
 
 ## ⏭️ EXEMPT
 | Symbol | Kind | Header | Reason | SDK attribute |

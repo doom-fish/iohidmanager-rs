@@ -56,6 +56,7 @@ pub const ALL_STRING_KEYS: &[KeyDefinition] = &[
     KeyDefinition { symbol: "kIOHIDElementUsagePageKey", value: "UsagePage" },
     KeyDefinition { symbol: "kIOHIDElementValueLocationKey", value: "ValueLocation" },
     KeyDefinition { symbol: "kIOHIDElementVariableSizeKey", value: "VariableSize" },
+    KeyDefinition { symbol: "kIOHIDElementVendorSpecificKey", value: "VendorSpecific" },
     KeyDefinition { symbol: "kIOHIDIdleTimeMicrosecondsKey", value: "HIDIdleTimeMicroseconds" },
     KeyDefinition { symbol: "kIOHIDKeyboardCapsLockDelay", value: "CapsLockDelay" },
     KeyDefinition { symbol: "kIOHIDKeyboardCapsLockDelayOverride", value: "CapsLockDelayOverride" },
@@ -151,4 +152,8 @@ pub const ALL_NUMERIC_CONSTANTS: &[NumericDefinition] = &[
     NumericDefinition { symbol: "kIOHIDStandardTypeISO", value: 1 },
     NumericDefinition { symbol: "kIOHIDStandardTypeJIS", value: 2 },
     NumericDefinition { symbol: "kIOHIDStandardTypeUnspecified", value: 4_294_967_295 },
+    NumericDefinition {
+        symbol: "kIOHIDSystemButtonPressedDuringDarkBoot",
+        value: 3_758_325_767,
+    },
 ];

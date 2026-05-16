@@ -10,10 +10,10 @@
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+mod bridge;
 pub mod error;
 #[path = "ffi/mod.rs"]
 pub(crate) mod ffi_impl;
-mod bridge;
 pub mod hid;
 
 #[cfg(feature = "raw-ffi")]
@@ -25,9 +25,9 @@ pub use error::HidError;
 pub use hid::{
     event_system, keys, service_plugin, usage, DeviceMatch, DeviceRemovalSubscription,
     ElementMatch, HidCollectionType, HidDevice, HidDeviceInfo, HidElement, HidElementType,
-    HidInputReport, HidManager, HidQueue, HidQueueOptions, HidReportType, HidTransaction,
-    HidTransactionDirection, HidTransactionOptions, HidUsage, HidValue, HidValueScale,
-    ManagerDeviceSubscription, ManagerReportSubscription, ManagerValueSubscription,
+    HidInputReport, HidManager, HidManagerOptions, HidQueue, HidQueueOptions, HidReportType,
+    HidTransaction, HidTransactionDirection, HidTransactionOptions, HidUsage, HidValue,
+    HidValueScale, ManagerDeviceSubscription, ManagerReportSubscription, ManagerValueSubscription,
     QueueValueAvailableSubscription, ReportSubscription, TimestampedReportSubscription,
     ValueSubscription,
 };
@@ -37,8 +37,8 @@ pub mod prelude {
     pub use crate::error::HidError;
     pub use crate::hid::{
         DeviceMatch, DeviceRemovalSubscription, ElementMatch, HidCollectionType, HidDevice,
-        HidDeviceInfo, HidElement, HidElementType, HidInputReport, HidManager, HidQueue,
-        HidQueueOptions, HidReportType, HidTransaction, HidTransactionDirection,
+        HidDeviceInfo, HidElement, HidElementType, HidInputReport, HidManager, HidManagerOptions,
+        HidQueue, HidQueueOptions, HidReportType, HidTransaction, HidTransactionDirection,
         HidTransactionOptions, HidUsage, HidValue, HidValueScale, ManagerDeviceSubscription,
         ManagerReportSubscription, ManagerValueSubscription, QueueValueAvailableSubscription,
         ReportSubscription, TimestampedReportSubscription, ValueSubscription,

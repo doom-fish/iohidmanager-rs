@@ -55,7 +55,8 @@ unsafe extern "C" fn manager_report_trampoline(
     report: *mut u8,
     report_length: ffi::CFIndex,
 ) {
-    if context.is_null() || sender.is_null() || report.is_null() || result != ffi::kIOReturnSuccess {
+    if context.is_null() || sender.is_null() || report.is_null() || result != ffi::kIOReturnSuccess
+    {
         return;
     }
     let Some(device) = retained_device_from_sender(sender) else {
@@ -85,7 +86,8 @@ unsafe extern "C" fn manager_timestamped_report_trampoline(
     report_length: ffi::CFIndex,
     timestamp: u64,
 ) {
-    if context.is_null() || sender.is_null() || report.is_null() || result != ffi::kIOReturnSuccess {
+    if context.is_null() || sender.is_null() || report.is_null() || result != ffi::kIOReturnSuccess
+    {
         return;
     }
     let Some(device) = retained_device_from_sender(sender) else {
@@ -130,9 +132,7 @@ fn retained_device_from_sender(sender: *mut c_void) -> Option<HidDevice> {
         return None;
     }
     unsafe { ffi::CFRetain(device.cast_const()) };
-    Some(HidDevice {
-        raw: device.cast(),
-    })
+    Some(HidDevice { raw: device.cast() })
 }
 
 fn schedule_manager(manager: ffi::IOHIDManagerRef) -> ffi::CFRunLoopRef {
@@ -164,10 +164,18 @@ impl Drop for ManagerDeviceSubscription {
         unsafe {
             match self.kind {
                 ManagerDeviceCallbackKind::Matching => {
-                    ffi::IOHIDManagerRegisterDeviceMatchingCallback(self.manager, None, ptr::null_mut());
+                    ffi::IOHIDManagerRegisterDeviceMatchingCallback(
+                        self.manager,
+                        None,
+                        ptr::null_mut(),
+                    );
                 }
                 ManagerDeviceCallbackKind::Removal => {
-                    ffi::IOHIDManagerRegisterDeviceRemovalCallback(self.manager, None, ptr::null_mut());
+                    ffi::IOHIDManagerRegisterDeviceRemovalCallback(
+                        self.manager,
+                        None,
+                        ptr::null_mut(),
+                    );
                 }
             }
             unschedule_manager(self.manager, self.run_loop);
@@ -197,7 +205,11 @@ impl Drop for ManagerReportSubscription {
         unsafe {
             match self.kind {
                 ManagerReportCallbackKind::Untimestamped => {
-                    ffi::IOHIDManagerRegisterInputReportCallback(self.manager, None, ptr::null_mut());
+                    ffi::IOHIDManagerRegisterInputReportCallback(
+                        self.manager,
+                        None,
+                        ptr::null_mut(),
+                    );
                 }
                 ManagerReportCallbackKind::Timestamped => {
                     ffi::IOHIDManagerRegisterInputReportWithTimeStampCallback(
@@ -242,8 +254,67 @@ impl Drop for ManagerValueSubscription {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub struct HidManagerOptions(u32);
+
+impl HidManagerOptions {
+    pub const NONE: Self = Self(ffi::kIOHIDManagerOptionNone);
+    pub const USE_PERSISTENT_PROPERTIES: Self =
+        Self(ffi::kIOHIDManagerOptionUsePersistentProperties);
+    pub const DO_NOT_LOAD_PROPERTIES: Self = Self(ffi::kIOHIDManagerOptionDoNotLoadProperties);
+    pub const DO_NOT_SAVE_PROPERTIES: Self = Self(ffi::kIOHIDManagerOptionDoNotSaveProperties);
+    pub const INDEPENDENT_DEVICES: Self = Self(ffi::kIOHIDManagerOptionIndependentDevices);
+
+    #[must_use]
+    pub const fn bits(self) -> ffi::IOHIDManagerOptions {
+        self.0
+    }
+
+    #[must_use]
+    pub const fn from_bits(bits: ffi::IOHIDManagerOptions) -> Self {
+        Self(bits)
+    }
+}
+
+impl core::ops::BitOr for HidManagerOptions {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl core::ops::BitOrAssign for HidManagerOptions {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+
 #[allow(clippy::missing_errors_doc, clippy::type_complexity)]
 impl HidManager {
+    pub fn with_options(options: HidManagerOptions) -> Result<Self, HidError> {
+        let bits = options.bits();
+        let raw = unsafe { ffi::IOHIDManagerCreate(ffi::kCFAllocatorDefault, bits) };
+        if raw.is_null() {
+            return Err(HidError::ManagerCreateFailed);
+        }
+        let status = unsafe { ffi::IOHIDManagerOpen(raw, bits) };
+        if status != ffi::kIOReturnSuccess {
+            unsafe { ffi::CFRelease(raw.cast_const()) };
+            return Err(HidError::ManagerOpenFailed(status));
+        }
+        Ok(Self { raw })
+    }
+
+    pub fn save_to_property_domain_with_options(
+        &self,
+        application_id: &str,
+        user_name: &str,
+        host_name: &str,
+        options: HidManagerOptions,
+    ) -> Result<(), HidError> {
+        self.save_to_property_domain(application_id, user_name, host_name, options.bits())
+    }
     pub fn activate(&self) {
         unsafe { ffi::IOHIDManagerActivate(self.raw) };
     }

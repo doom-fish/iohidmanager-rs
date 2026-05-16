@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.1] - 2026-05-16
+
+### Added
+
+- Public low-level SDK type aliases for manager options, device get-value options, event-system option enums, and key typedefs.
+- Raw/bridged coverage for `IOHIDDevicePlugIn.h` vtable structs, `IOHIDCompletion`, report-command enums, element flag/value-option masks, and manager option flags.
+- A smoke example (`16_low_level_sdk_types`) plus coverage tests for the newly-exposed low-level surfaces.
+
 ## [0.6.0] - 2026-05-16
 
 ### Added

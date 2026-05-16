@@ -1,4 +1,9 @@
-use crate::bridge;
+use crate::{bridge, ffi_impl as ffi};
+
+pub type IOHIDAccelerationAlgorithmType = ffi::IOHIDAccelerationAlgorithmType;
+pub type IOHIDKeyboardPhysicalLayoutType = ffi::IOHIDKeyboardPhysicalLayoutType;
+pub type IOHIDOptionsType = ffi::IOHIDOptionsType;
+pub type IOHIDStandardType = ffi::IOHIDStandardType;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyDefinition {
@@ -32,6 +37,7 @@ pub const ELEMENT_COOKIE_MIN_KEY: &str = "ElementCookieMin";
 pub const ELEMENT_COOKIE_MAX_KEY: &str = "ElementCookieMax";
 pub const ELEMENT_USAGE_MIN_KEY: &str = "UsageMin";
 pub const ELEMENT_USAGE_MAX_KEY: &str = "UsageMax";
+pub const ELEMENT_VENDOR_SPECIFIC_KEY: &str = "VendorSpecific";
 pub const TRANSPORT_USB_VALUE: &str = "USB";
 pub const TRANSPORT_BLUETOOTH_VALUE: &str = "Bluetooth";
 pub const DEVICE_SUSPEND_KEY: &str = "IOHIDDeviceSuspend";
@@ -40,26 +46,27 @@ pub const REPORT_BUFFER_ENTRY_SIZE_KEY: &str = "ReportBufferEntrySize";
 pub const KEYBOARD_LAYOUT_VALUE_KEY: &str = "HIDKeyboardLayoutValue";
 pub const POINTER_ACCELERATION_ALGORITHM_KEY: &str = "HIDPointerAccelerationAlgorithm";
 pub const SCROLL_ACCELERATION_ALGORITHM_KEY: &str = "HIDScrollAccelerationAlgorithm";
+pub const SYSTEM_BUTTON_PRESSED_DURING_DARK_BOOT: u64 = 3_758_325_767;
 
-pub const OPTIONS_TYPE_NONE: u32 = 0x00;
-pub const OPTIONS_TYPE_SEIZE_DEVICE: u32 = 0x01;
-pub const OPTIONS_TYPE_MASK_PRIVATE: u32 = 0x00ff_0000;
-pub const QUEUE_OPTIONS_TYPE_NONE: u32 = 0x00;
-pub const QUEUE_OPTIONS_TYPE_ENQUEUE_ALL: u32 = 0x01;
-pub const STANDARD_TYPE_ANSI: u32 = 0x0;
-pub const STANDARD_TYPE_ISO: u32 = 0x1;
-pub const STANDARD_TYPE_JIS: u32 = 0x2;
-pub const STANDARD_TYPE_UNSPECIFIED: u32 = 0xffff_ffff;
-pub const KEYBOARD_LAYOUT_TYPE_UNKNOWN: u32 = 0x0;
-pub const KEYBOARD_LAYOUT_TYPE_101: u32 = 0x1;
-pub const KEYBOARD_LAYOUT_TYPE_103: u32 = 0x2;
-pub const KEYBOARD_LAYOUT_TYPE_102: u32 = 0x3;
-pub const KEYBOARD_LAYOUT_TYPE_104: u32 = 0x4;
-pub const KEYBOARD_LAYOUT_TYPE_106: u32 = 0x5;
-pub const KEYBOARD_LAYOUT_TYPE_VENDOR: u32 = 0x6;
-pub const ACCELERATION_ALGORITHM_TABLE: u64 = 0;
-pub const ACCELERATION_ALGORITHM_PARAMETRIC: u64 = 1;
-pub const ACCELERATION_ALGORITHM_DEFAULT: u64 = 2;
+pub const OPTIONS_TYPE_NONE: IOHIDOptionsType = ffi::kIOHIDOptionsTypeNone;
+pub const OPTIONS_TYPE_SEIZE_DEVICE: IOHIDOptionsType = ffi::kIOHIDOptionsTypeSeizeDevice;
+pub const OPTIONS_TYPE_MASK_PRIVATE: IOHIDOptionsType = 0x00ff_0000;
+pub const QUEUE_OPTIONS_TYPE_NONE: IOHIDOptionsType = ffi::kIOHIDQueueOptionsTypeNone;
+pub const QUEUE_OPTIONS_TYPE_ENQUEUE_ALL: IOHIDOptionsType = ffi::kIOHIDQueueOptionsTypeEnqueueAll;
+pub const STANDARD_TYPE_ANSI: IOHIDStandardType = 0x0;
+pub const STANDARD_TYPE_ISO: IOHIDStandardType = 0x1;
+pub const STANDARD_TYPE_JIS: IOHIDStandardType = 0x2;
+pub const STANDARD_TYPE_UNSPECIFIED: IOHIDStandardType = 0xffff_ffff;
+pub const KEYBOARD_LAYOUT_TYPE_UNKNOWN: IOHIDKeyboardPhysicalLayoutType = 0x0;
+pub const KEYBOARD_LAYOUT_TYPE_101: IOHIDKeyboardPhysicalLayoutType = 0x1;
+pub const KEYBOARD_LAYOUT_TYPE_103: IOHIDKeyboardPhysicalLayoutType = 0x2;
+pub const KEYBOARD_LAYOUT_TYPE_102: IOHIDKeyboardPhysicalLayoutType = 0x3;
+pub const KEYBOARD_LAYOUT_TYPE_104: IOHIDKeyboardPhysicalLayoutType = 0x4;
+pub const KEYBOARD_LAYOUT_TYPE_106: IOHIDKeyboardPhysicalLayoutType = 0x5;
+pub const KEYBOARD_LAYOUT_TYPE_VENDOR: IOHIDKeyboardPhysicalLayoutType = 0x6;
+pub const ACCELERATION_ALGORITHM_TABLE: IOHIDAccelerationAlgorithmType = 0;
+pub const ACCELERATION_ALGORITHM_PARAMETRIC: IOHIDAccelerationAlgorithmType = 1;
+pub const ACCELERATION_ALGORITHM_DEFAULT: IOHIDAccelerationAlgorithmType = 2;
 
 include!("generated_keys.rs");
 

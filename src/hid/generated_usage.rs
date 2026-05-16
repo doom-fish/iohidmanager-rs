@@ -1237,6 +1237,7 @@ pub const ALL_USAGE_CONSTANTS: &[UsageConstant] = &[
     UsageConstant { symbol: "kHIDUsage_GD_SystemDock", value: 160 },
     UsageConstant { symbol: "kHIDUsage_GD_SystemHibernate", value: 168 },
     UsageConstant { symbol: "kHIDUsage_GD_SystemMainMenu", value: 133 },
+    UsageConstant { symbol: "kHIDUsage_GD_SystemMenu", value: 137 },
     UsageConstant { symbol: "kHIDUsage_GD_SystemMenuDown", value: 141 },
     UsageConstant { symbol: "kHIDUsage_GD_SystemMenuExit", value: 136 },
     UsageConstant { symbol: "kHIDUsage_GD_SystemMenuHelp", value: 135 },

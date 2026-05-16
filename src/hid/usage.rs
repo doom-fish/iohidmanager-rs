@@ -14,6 +14,7 @@ pub const USAGE_GAME_PAD: u32 = 0x05;
 pub const USAGE_KEYBOARD: u32 = 0x06;
 pub const USAGE_KEYPAD: u32 = 0x07;
 pub const USAGE_MULTI_AXIS_CONTROLLER: u32 = 0x08;
+pub const USAGE_SYSTEM_MENU: u32 = 0x89;
 
 include!("generated_usage.rs");
 

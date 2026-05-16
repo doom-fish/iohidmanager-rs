@@ -29,6 +29,7 @@ pub type CFTypeID = usize;
 pub type dispatch_queue_t = *mut c_void;
 pub type dispatch_block_t = *mut c_void;
 pub type io_service_t = u32;
+pub type Boolean = u8;
 
 pub type IOHIDManagerRef = *mut c_void;
 pub type IOHIDDeviceRef = *mut c_void;
@@ -41,6 +42,21 @@ pub type IOOptionBits = u32;
 pub type IOHIDReportType = u32;
 pub type IOHIDValueScaleType = u32;
 pub type IOHIDTransactionDirectionType = u32;
+pub type IOHIDDeviceGetValueOptions = u32;
+pub type IOHIDElementCommitDirection = u32;
+pub type IOHIDElementCookie = u32;
+pub type IOHIDElementFlags = u32;
+pub type IOHIDValueOptions = u32;
+pub type IOHIDKeyboardEventOptions = u32;
+pub type IOHIDPointerEventOptions = u32;
+pub type IOHIDScrollEventOptions = u32;
+pub type IOHIDServiceSensorControlOptions = u32;
+pub type IOHIDManagerOptions = u32;
+pub type IOHIDAccelerationAlgorithmType = u64;
+pub type IOHIDKeyboardPhysicalLayoutType = u32;
+pub type IOHIDOptionsType = IOOptionBits;
+pub type IOHIDStandardType = u32;
+pub type HIDReportCommandType = u32;
 
 pub const kIOReturnSuccess: IOReturn = 0;
 
@@ -48,17 +64,41 @@ pub const kCFNumberSInt32Type: i64 = 3;
 pub const kCFNumberSInt64Type: i64 = 4;
 pub const kCFStringEncodingUTF8: u32 = 0x0800_0100;
 
-pub const kIOHIDOptionsTypeNone: IOOptionBits = 0;
-pub const kIOHIDOptionsTypeSeizeDevice: IOOptionBits = 1;
+pub const kIOHIDOptionsTypeNone: IOHIDOptionsType = 0;
+pub const kIOHIDOptionsTypeSeizeDevice: IOHIDOptionsType = 1;
 
 pub const kIOHIDReportTypeInput: IOHIDReportType = 0;
 pub const kIOHIDReportTypeOutput: IOHIDReportType = 1;
 pub const kIOHIDReportTypeFeature: IOHIDReportType = 2;
 pub const kIOHIDReportTypeCount: IOHIDReportType = 3;
 
+pub const kIOHIDElementCommitDirectionIn: IOHIDElementCommitDirection = 0;
+pub const kIOHIDElementCommitDirectionOut: IOHIDElementCommitDirection = 1;
+pub const kIOHIDElementFlagsConstantMask: IOHIDElementFlags = 0x0001;
+pub const kIOHIDElementFlagsVariableMask: IOHIDElementFlags = 0x0002;
+pub const kIOHIDElementFlagsRelativeMask: IOHIDElementFlags = 0x0004;
+pub const kIOHIDElementFlagsWrapMask: IOHIDElementFlags = 0x0008;
+pub const kIOHIDElementFlagsNonLinearMask: IOHIDElementFlags = 0x0010;
+pub const kIOHIDElementFlagsNoPreferredMask: IOHIDElementFlags = 0x0020;
+pub const kIOHIDElementFlagsNullStateMask: IOHIDElementFlags = 0x0040;
+pub const kIOHIDElementFlagsVolativeMask: IOHIDElementFlags = 0x0080;
+pub const kIOHIDElementFlagsBufferedByteMask: IOHIDElementFlags = 0x0100;
+
 pub const kIOHIDValueScaleTypeCalibrated: IOHIDValueScaleType = 0;
 pub const kIOHIDValueScaleTypePhysical: IOHIDValueScaleType = 1;
 pub const kIOHIDValueScaleTypeExponent: IOHIDValueScaleType = 2;
+pub const kIOHIDValueOptionsFlagRelativeSimple: IOHIDValueOptions = 1 << 0;
+pub const kIOHIDValueOptionsFlagPrevious: IOHIDValueOptions = 1 << 1;
+pub const kIOHIDValueOptionsUpdateElementValues: IOHIDValueOptions = 1 << 2;
+
+pub const kIOHIDReportOptionNotInterrupt: IOOptionBits = 0x100;
+pub const kIOHIDReportOptionVariableSize: IOOptionBits = 0x200;
+pub const kIOHIDReportCommandSetReport: HIDReportCommandType = 0;
+pub const kIOHIDReportCommandGetReport: HIDReportCommandType = 1;
+pub const kIOHIDDeviceDefaultAsyncRequestTimeout: u64 = 1_000;
+pub const kIOHIDDeviceMinAsyncRequestTimeout: u64 = 50;
+pub const kIOHIDDeviceMaxAsyncRequestTimeout: u64 = 1_200_000;
+
 pub const kIOHIDTransactionDirectionTypeInput: IOHIDTransactionDirectionType = 0;
 pub const kIOHIDTransactionDirectionTypeOutput: IOHIDTransactionDirectionType = 1;
 pub const kIOHIDTransactionOptionDefaultOutputValue: IOOptionBits = 0x0001;
@@ -67,8 +107,21 @@ pub const kIOHIDTransactionOptionsWeakDevice: IOOptionBits = 0x1;
 pub const kIOHIDQueueOptionsTypeNone: IOOptionBits = 0x00;
 pub const kIOHIDQueueOptionsTypeEnqueueAll: IOOptionBits = 0x01;
 
-pub const kIOHIDDeviceGetValueWithUpdate: u32 = 0x0002_0000;
-pub const kIOHIDDeviceGetValueWithoutUpdate: u32 = 0x0004_0000;
+pub const kIOHIDKeyboardEventOptionsNoKeyRepeat: IOHIDKeyboardEventOptions = 1 << 8;
+pub const kIOHIDPointerEventOptionsNoAcceleration: IOHIDPointerEventOptions = 1 << 8;
+pub const kIOHIDScrollEventOptionsNoAcceleration: IOHIDScrollEventOptions = 1 << 8;
+pub const kIOHIDServiceSensorControlDecimation: IOHIDServiceSensorControlOptions = 1 << 0;
+pub const kIOHIDServiceSensorControlAggregation: IOHIDServiceSensorControlOptions = 1 << 1;
+pub const kIOHIDServiceSensorControlDispatchControl: IOHIDServiceSensorControlOptions = 1 << 2;
+
+pub const kIOHIDManagerOptionNone: IOHIDManagerOptions = 0x0;
+pub const kIOHIDManagerOptionUsePersistentProperties: IOHIDManagerOptions = 0x1;
+pub const kIOHIDManagerOptionDoNotLoadProperties: IOHIDManagerOptions = 0x2;
+pub const kIOHIDManagerOptionDoNotSaveProperties: IOHIDManagerOptions = 0x4;
+pub const kIOHIDManagerOptionIndependentDevices: IOHIDManagerOptions = 0x8;
+
+pub const kIOHIDDeviceGetValueWithUpdate: IOHIDDeviceGetValueOptions = 0x0002_0000;
+pub const kIOHIDDeviceGetValueWithoutUpdate: IOHIDDeviceGetValueOptions = 0x0004_0000;
 
 pub const kHIDPage_GenericDesktop: u32 = 0x01;
 pub const kHIDPage_KeyboardOrKeypad: u32 = 0x07;
@@ -119,6 +172,285 @@ pub type IOHIDDeviceCallback = unsafe extern "C" fn(
     sender: *mut c_void,
     device: IOHIDDeviceRef,
 );
+pub type IOHIDCompletionAction = unsafe extern "C" fn(
+    target: *mut c_void,
+    parameter: *mut c_void,
+    status: IOReturn,
+    buffer_size_remaining: u32,
+);
+
+#[repr(C)]
+pub struct IOHIDCompletion {
+    pub target: *mut c_void,
+    pub action: Option<IOHIDCompletionAction>,
+    pub parameter: *mut c_void,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct CFUUIDBytes {
+    pub byte0: u8,
+    pub byte1: u8,
+    pub byte2: u8,
+    pub byte3: u8,
+    pub byte4: u8,
+    pub byte5: u8,
+    pub byte6: u8,
+    pub byte7: u8,
+    pub byte8: u8,
+    pub byte9: u8,
+    pub byte10: u8,
+    pub byte11: u8,
+    pub byte12: u8,
+    pub byte13: u8,
+    pub byte14: u8,
+    pub byte15: u8,
+}
+
+pub type IOHIDIUnknownQueryInterface =
+    unsafe extern "C" fn(this_pointer: *mut c_void, iid: CFUUIDBytes, ppv: *mut *mut c_void) -> i32;
+pub type IOHIDIUnknownAddRef = unsafe extern "C" fn(this_pointer: *mut c_void) -> u32;
+pub type IOHIDIUnknownRelease = unsafe extern "C" fn(this_pointer: *mut c_void) -> u32;
+
+#[repr(C)]
+pub struct IUnknownVTable {
+    pub reserved: *mut c_void,
+    pub query_interface: Option<IOHIDIUnknownQueryInterface>,
+    pub add_ref: Option<IOHIDIUnknownAddRef>,
+    pub release: Option<IOHIDIUnknownRelease>,
+}
+
+#[repr(C)]
+pub struct IOHIDDeviceDeviceInterface {
+    pub iunknown: IUnknownVTable,
+    pub open:
+        Option<unsafe extern "C" fn(this_pointer: *mut c_void, options: IOOptionBits) -> IOReturn>,
+    pub close:
+        Option<unsafe extern "C" fn(this_pointer: *mut c_void, options: IOOptionBits) -> IOReturn>,
+    pub get_property: Option<
+        unsafe extern "C" fn(
+            this_pointer: *mut c_void,
+            key: CFStringRef,
+            property: *mut CFTypeRef,
+        ) -> IOReturn,
+    >,
+    pub set_property: Option<
+        unsafe extern "C" fn(
+            this_pointer: *mut c_void,
+            key: CFStringRef,
+            property: CFTypeRef,
+        ) -> IOReturn,
+    >,
+    pub get_async_event_source:
+        Option<unsafe extern "C" fn(this_pointer: *mut c_void, source: *mut CFTypeRef) -> IOReturn>,
+    pub copy_matching_elements: Option<
+        unsafe extern "C" fn(
+            this_pointer: *mut c_void,
+            matching_dict: CFDictionaryRef,
+            elements: *mut CFArrayRef,
+            options: IOOptionBits,
+        ) -> IOReturn,
+    >,
+    pub set_value: Option<
+        unsafe extern "C" fn(
+            this_pointer: *mut c_void,
+            element: IOHIDElementRef,
+            value: IOHIDValueRef,
+            timeout: u32,
+            callback: Option<IOHIDValueCallback>,
+            context: *mut c_void,
+            options: IOOptionBits,
+        ) -> IOReturn,
+    >,
+    pub get_value: Option<
+        unsafe extern "C" fn(
+            this_pointer: *mut c_void,
+            element: IOHIDElementRef,
+            value: *mut IOHIDValueRef,
+            timeout: u32,
+            callback: Option<IOHIDValueCallback>,
+            context: *mut c_void,
+            options: IOOptionBits,
+        ) -> IOReturn,
+    >,
+    pub set_input_report_callback: Option<
+        unsafe extern "C" fn(
+            this_pointer: *mut c_void,
+            report: *mut u8,
+            report_length: CFIndex,
+            callback: Option<IOHIDReportCallback>,
+            context: *mut c_void,
+            options: IOOptionBits,
+        ) -> IOReturn,
+    >,
+    pub set_report: Option<
+        unsafe extern "C" fn(
+            this_pointer: *mut c_void,
+            report_type: IOHIDReportType,
+            report_id: u32,
+            report: *const u8,
+            report_length: CFIndex,
+            timeout: u32,
+            callback: Option<IOHIDReportCallback>,
+            context: *mut c_void,
+            options: IOOptionBits,
+        ) -> IOReturn,
+    >,
+    pub get_report: Option<
+        unsafe extern "C" fn(
+            this_pointer: *mut c_void,
+            report_type: IOHIDReportType,
+            report_id: u32,
+            report: *mut u8,
+            report_length: *mut CFIndex,
+            timeout: u32,
+            callback: Option<IOHIDReportCallback>,
+            context: *mut c_void,
+            options: IOOptionBits,
+        ) -> IOReturn,
+    >,
+}
+
+#[repr(C)]
+pub struct IOHIDDeviceTimeStampedDeviceInterface {
+    pub base: IOHIDDeviceDeviceInterface,
+    pub set_input_report_with_timestamp_callback: Option<
+        unsafe extern "C" fn(
+            this_pointer: *mut c_void,
+            report: *mut u8,
+            report_length: CFIndex,
+            callback: Option<IOHIDReportWithTimeStampCallback>,
+            context: *mut c_void,
+            options: IOOptionBits,
+        ) -> IOReturn,
+    >,
+}
+
+#[repr(C)]
+pub struct IOHIDDeviceQueueInterface {
+    pub iunknown: IUnknownVTable,
+    pub get_async_event_source:
+        Option<unsafe extern "C" fn(this_pointer: *mut c_void, source: *mut CFTypeRef) -> IOReturn>,
+    pub set_depth: Option<
+        unsafe extern "C" fn(
+            this_pointer: *mut c_void,
+            depth: u32,
+            options: IOOptionBits,
+        ) -> IOReturn,
+    >,
+    pub get_depth:
+        Option<unsafe extern "C" fn(this_pointer: *mut c_void, depth: *mut u32) -> IOReturn>,
+    pub add_element: Option<
+        unsafe extern "C" fn(
+            this_pointer: *mut c_void,
+            element: IOHIDElementRef,
+            options: IOOptionBits,
+        ) -> IOReturn,
+    >,
+    pub remove_element: Option<
+        unsafe extern "C" fn(
+            this_pointer: *mut c_void,
+            element: IOHIDElementRef,
+            options: IOOptionBits,
+        ) -> IOReturn,
+    >,
+    pub contains_element: Option<
+        unsafe extern "C" fn(
+            this_pointer: *mut c_void,
+            element: IOHIDElementRef,
+            value: *mut Boolean,
+            options: IOOptionBits,
+        ) -> IOReturn,
+    >,
+    pub start:
+        Option<unsafe extern "C" fn(this_pointer: *mut c_void, options: IOOptionBits) -> IOReturn>,
+    pub stop:
+        Option<unsafe extern "C" fn(this_pointer: *mut c_void, options: IOOptionBits) -> IOReturn>,
+    pub set_value_available_callback: Option<
+        unsafe extern "C" fn(
+            this_pointer: *mut c_void,
+            callback: Option<IOHIDCallback>,
+            context: *mut c_void,
+        ) -> IOReturn,
+    >,
+    pub copy_next_value: Option<
+        unsafe extern "C" fn(
+            this_pointer: *mut c_void,
+            value: *mut IOHIDValueRef,
+            timeout: u32,
+            options: IOOptionBits,
+        ) -> IOReturn,
+    >,
+}
+
+#[repr(C)]
+pub struct IOHIDDeviceTransactionInterface {
+    pub iunknown: IUnknownVTable,
+    pub get_async_event_source:
+        Option<unsafe extern "C" fn(this_pointer: *mut c_void, source: *mut CFTypeRef) -> IOReturn>,
+    pub set_direction: Option<
+        unsafe extern "C" fn(
+            this_pointer: *mut c_void,
+            direction: IOHIDTransactionDirectionType,
+            options: IOOptionBits,
+        ) -> IOReturn,
+    >,
+    pub get_direction: Option<
+        unsafe extern "C" fn(
+            this_pointer: *mut c_void,
+            direction: *mut IOHIDTransactionDirectionType,
+        ) -> IOReturn,
+    >,
+    pub add_element: Option<
+        unsafe extern "C" fn(
+            this_pointer: *mut c_void,
+            element: IOHIDElementRef,
+            options: IOOptionBits,
+        ) -> IOReturn,
+    >,
+    pub remove_element: Option<
+        unsafe extern "C" fn(
+            this_pointer: *mut c_void,
+            element: IOHIDElementRef,
+            options: IOOptionBits,
+        ) -> IOReturn,
+    >,
+    pub contains_element: Option<
+        unsafe extern "C" fn(
+            this_pointer: *mut c_void,
+            element: IOHIDElementRef,
+            value: *mut Boolean,
+            options: IOOptionBits,
+        ) -> IOReturn,
+    >,
+    pub set_value: Option<
+        unsafe extern "C" fn(
+            this_pointer: *mut c_void,
+            element: IOHIDElementRef,
+            value: IOHIDValueRef,
+            options: IOOptionBits,
+        ) -> IOReturn,
+    >,
+    pub get_value: Option<
+        unsafe extern "C" fn(
+            this_pointer: *mut c_void,
+            element: IOHIDElementRef,
+            value: *mut IOHIDValueRef,
+            options: IOOptionBits,
+        ) -> IOReturn,
+    >,
+    pub commit: Option<
+        unsafe extern "C" fn(
+            this_pointer: *mut c_void,
+            timeout: u32,
+            callback: Option<IOHIDCallback>,
+            context: *mut c_void,
+            options: IOOptionBits,
+        ) -> IOReturn,
+    >,
+    pub clear:
+        Option<unsafe extern "C" fn(this_pointer: *mut c_void, options: IOOptionBits) -> IOReturn>,
+}
 
 extern "C" {
     pub static kCFAllocatorDefault: CFAllocatorRef;
@@ -487,10 +819,7 @@ extern "C" {
         transaction: IOHIDTransactionRef,
         direction: IOHIDTransactionDirectionType,
     );
-    pub fn IOHIDTransactionAddElement(
-        transaction: IOHIDTransactionRef,
-        element: IOHIDElementRef,
-    );
+    pub fn IOHIDTransactionAddElement(transaction: IOHIDTransactionRef, element: IOHIDElementRef);
     pub fn IOHIDTransactionRemoveElement(
         transaction: IOHIDTransactionRef,
         element: IOHIDElementRef,

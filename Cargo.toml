@@ -1,6 +1,6 @@
 [package]
 name = "iohidmanager"
-version = "0.6.0"
+version = "0.6.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/iohidmanager-rs"
@@ -16,7 +16,8 @@ include = [
     "src/**/*",
     "examples/**/*",
     "tests/**/*",
-    "swift-bridge/**/*",
+    "swift-bridge/Package.swift",
+    "swift-bridge/Sources/**/*",
     "build.rs",
     "Cargo.toml",
     "README.md",
@@ -98,6 +99,9 @@ name = "14_service_plugin_ids"
 
 [[example]]
 name = "15_event_system_catalog"
+
+[[example]]
+name = "16_low_level_sdk_types"
 
 [profile.release]
 debug = "full"

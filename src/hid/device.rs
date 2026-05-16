@@ -43,7 +43,9 @@ fn build_element_array(elements: &[HidElement]) -> Result<ffi::CFArrayRef, HidEr
     Ok(array.cast())
 }
 
-fn build_element_value_dictionary(values: &[(HidElement, HidValue)]) -> Result<ffi::CFDictionaryRef, HidError> {
+fn build_element_value_dictionary(
+    values: &[(HidElement, HidValue)],
+) -> Result<ffi::CFDictionaryRef, HidError> {
     let capacity = ffi::CFIndex::try_from(values.len()).map_err(|_| {
         HidError::InvalidArgument("dictionary size does not fit CFIndex".to_owned())
     })?;
@@ -81,7 +83,14 @@ fn read_element_value_dictionary(dict: ffi::CFDictionaryRef) -> Vec<(HidElement,
         .zip(values)
         .filter_map(|(key, value)| {
             (!key.is_null() && !value.is_null()).then(|| {
-                clone_value_ref(value.cast_mut()).map(|value| (HidElement { raw: key.cast_mut() }, value))
+                clone_value_ref(value.cast_mut()).map(|value| {
+                    (
+                        HidElement {
+                            raw: key.cast_mut(),
+                        },
+                        value,
+                    )
+                })
             })
         })
         .flatten()
@@ -124,7 +133,7 @@ impl HidDevice {
         }
     }
 
-    pub fn open_with_options(&self, options: ffi::IOOptionBits) -> Result<(), HidError> {
+    pub fn open_with_options(&self, options: ffi::IOHIDOptionsType) -> Result<(), HidError> {
         let status = unsafe { ffi::IOHIDDeviceOpen(self.raw, options) };
         if status == ffi::kIOReturnSuccess {
             Ok(())
@@ -133,7 +142,7 @@ impl HidDevice {
         }
     }
 
-    pub fn close_with_options(&self, options: ffi::IOOptionBits) -> Result<(), HidError> {
+    pub fn close_with_options(&self, options: ffi::IOHIDOptionsType) -> Result<(), HidError> {
         let status = unsafe { ffi::IOHIDDeviceClose(self.raw, options) };
         if status == ffi::kIOReturnSuccess {
             Ok(())
@@ -286,7 +295,10 @@ impl HidDevice {
         if status == ffi::kIOReturnSuccess {
             Ok(())
         } else {
-            Err(HidError::IoReturn("IOHIDDeviceSetValueWithCallback", status))
+            Err(HidError::IoReturn(
+                "IOHIDDeviceSetValueWithCallback",
+                status,
+            ))
         }
     }
 
@@ -307,7 +319,10 @@ impl HidDevice {
             )
         };
         if status != ffi::kIOReturnSuccess {
-            return Err(HidError::IoReturn("IOHIDDeviceGetValueWithCallback", status));
+            return Err(HidError::IoReturn(
+                "IOHIDDeviceGetValueWithCallback",
+                status,
+            ));
         }
         clone_value_ref(value).ok_or(HidError::OperationFailed("IOHIDDeviceGetValueWithCallback"))
     }
@@ -339,7 +354,10 @@ impl HidDevice {
         if status == ffi::kIOReturnSuccess {
             Ok(())
         } else {
-            Err(HidError::IoReturn("IOHIDDeviceSetReportWithCallback", status))
+            Err(HidError::IoReturn(
+                "IOHIDDeviceSetReportWithCallback",
+                status,
+            ))
         }
     }
 }

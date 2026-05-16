@@ -21,10 +21,57 @@ pub mod value;
 
 pub use device::DeviceRemovalSubscription;
 pub use manager::{
-    ManagerDeviceSubscription, ManagerReportSubscription, ManagerValueSubscription,
+    HidManagerOptions, ManagerDeviceSubscription, ManagerReportSubscription,
+    ManagerValueSubscription,
 };
 pub use queue::{HidQueue, HidQueueOptions, QueueValueAvailableSubscription};
 pub use transaction::{HidTransaction, HidTransactionDirection, HidTransactionOptions};
+
+pub type IOHIDDeviceGetValueOptions = ffi::IOHIDDeviceGetValueOptions;
+pub const DEVICE_GET_VALUE_WITH_UPDATE: IOHIDDeviceGetValueOptions =
+    ffi::kIOHIDDeviceGetValueWithUpdate;
+pub const DEVICE_GET_VALUE_WITHOUT_UPDATE: IOHIDDeviceGetValueOptions =
+    ffi::kIOHIDDeviceGetValueWithoutUpdate;
+
+pub type IOHIDElementCommitDirection = ffi::IOHIDElementCommitDirection;
+pub const ELEMENT_COMMIT_DIRECTION_IN: IOHIDElementCommitDirection =
+    ffi::kIOHIDElementCommitDirectionIn;
+pub const ELEMENT_COMMIT_DIRECTION_OUT: IOHIDElementCommitDirection =
+    ffi::kIOHIDElementCommitDirectionOut;
+
+pub type IOHIDElementCookie = ffi::IOHIDElementCookie;
+pub type IOHIDElementFlags = ffi::IOHIDElementFlags;
+pub const ELEMENT_FLAGS_CONSTANT_MASK: IOHIDElementFlags = ffi::kIOHIDElementFlagsConstantMask;
+pub const ELEMENT_FLAGS_VARIABLE_MASK: IOHIDElementFlags = ffi::kIOHIDElementFlagsVariableMask;
+pub const ELEMENT_FLAGS_RELATIVE_MASK: IOHIDElementFlags = ffi::kIOHIDElementFlagsRelativeMask;
+pub const ELEMENT_FLAGS_WRAP_MASK: IOHIDElementFlags = ffi::kIOHIDElementFlagsWrapMask;
+pub const ELEMENT_FLAGS_NON_LINEAR_MASK: IOHIDElementFlags = ffi::kIOHIDElementFlagsNonLinearMask;
+pub const ELEMENT_FLAGS_NO_PREFERRED_MASK: IOHIDElementFlags =
+    ffi::kIOHIDElementFlagsNoPreferredMask;
+pub const ELEMENT_FLAGS_NULL_STATE_MASK: IOHIDElementFlags = ffi::kIOHIDElementFlagsNullStateMask;
+pub const ELEMENT_FLAGS_VOLATIVE_MASK: IOHIDElementFlags = ffi::kIOHIDElementFlagsVolativeMask;
+pub const ELEMENT_FLAGS_BUFFERED_BYTE_MASK: IOHIDElementFlags =
+    ffi::kIOHIDElementFlagsBufferedByteMask;
+
+pub type IOHIDValueOptions = ffi::IOHIDValueOptions;
+pub const VALUE_OPTIONS_FLAG_RELATIVE_SIMPLE: IOHIDValueOptions =
+    ffi::kIOHIDValueOptionsFlagRelativeSimple;
+pub const VALUE_OPTIONS_FLAG_PREVIOUS: IOHIDValueOptions = ffi::kIOHIDValueOptionsFlagPrevious;
+pub const VALUE_OPTIONS_UPDATE_ELEMENT_VALUES: IOHIDValueOptions =
+    ffi::kIOHIDValueOptionsUpdateElementValues;
+
+pub type IOHIDCompletionAction = ffi::IOHIDCompletionAction;
+pub type IOHIDCompletion = ffi::IOHIDCompletion;
+pub type HIDReportCommandType = ffi::HIDReportCommandType;
+pub const REPORT_COMMAND_SET_REPORT: HIDReportCommandType = ffi::kIOHIDReportCommandSetReport;
+pub const REPORT_COMMAND_GET_REPORT: HIDReportCommandType = ffi::kIOHIDReportCommandGetReport;
+pub const REPORT_OPTION_NOT_INTERRUPT: ffi::IOOptionBits = ffi::kIOHIDReportOptionNotInterrupt;
+pub const REPORT_OPTION_VARIABLE_SIZE: ffi::IOOptionBits = ffi::kIOHIDReportOptionVariableSize;
+pub const DEVICE_DEFAULT_ASYNC_REQUEST_TIMEOUT: u64 = ffi::kIOHIDDeviceDefaultAsyncRequestTimeout;
+pub const DEVICE_MIN_ASYNC_REQUEST_TIMEOUT: u64 = ffi::kIOHIDDeviceMinAsyncRequestTimeout;
+pub const DEVICE_MAX_ASYNC_REQUEST_TIMEOUT: u64 = ffi::kIOHIDDeviceMaxAsyncRequestTimeout;
+
+pub type IOHIDManagerOptions = ffi::IOHIDManagerOptions;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
@@ -397,18 +444,7 @@ impl HidManager {
     }
 
     pub fn new() -> Result<Self, HidError> {
-        let raw = unsafe {
-            ffi::IOHIDManagerCreate(ffi::kCFAllocatorDefault, ffi::kIOHIDOptionsTypeNone)
-        };
-        if raw.is_null() {
-            return Err(HidError::ManagerCreateFailed);
-        }
-        let status = unsafe { ffi::IOHIDManagerOpen(raw, ffi::kIOHIDOptionsTypeNone) };
-        if status != ffi::kIOReturnSuccess {
-            unsafe { ffi::CFRelease(raw.cast_const()) };
-            return Err(HidError::ManagerOpenFailed(status));
-        }
-        Ok(Self { raw })
+        Self::with_options(HidManagerOptions::NONE)
     }
 
     pub fn set_device_matching(&self, usage: Option<HidUsage>) -> Result<(), HidError> {
@@ -456,7 +492,7 @@ impl HidManager {
         application_id: &str,
         user_name: &str,
         host_name: &str,
-        options: ffi::IOOptionBits,
+        options: IOHIDManagerOptions,
     ) -> Result<(), HidError> {
         let app = make_cfstring(application_id)?;
         let user = match make_cfstring(user_name) {
@@ -902,7 +938,7 @@ impl HidDevice {
     pub fn get_value_with_options(
         &self,
         element: &HidElement,
-        options: u32,
+        options: IOHIDDeviceGetValueOptions,
     ) -> Result<HidValue, HidError> {
         let mut value = ptr::null_mut();
         let status = unsafe {
@@ -1035,7 +1071,7 @@ impl HidElement {
     }
 
     #[must_use]
-    pub fn cookie(&self) -> u32 {
+    pub fn cookie(&self) -> IOHIDElementCookie {
         unsafe { ffi::IOHIDElementGetCookie(self.raw) }
     }
 
