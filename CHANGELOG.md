@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.7.1] - 2026-05-17
+
+### Fixed
+
+- **Panic safety**: all four synchronous-callback trampolines in `hid/manager.rs`
+  (`manager_device_trampoline`, `manager_report_trampoline`,
+  `manager_timestamped_report_trampoline`, `manager_value_trampoline`) now
+  wrap user-closure invocations in
+  `doom_fish_utils::panic_safe::catch_user_panic`, preventing UB from a panic
+  crossing the `extern "C"` boundary.
+- **Documentation — `set_device_matching` prerequisite**: the `async_api`
+  module doc and all four manager-level `subscribe()` methods
+  (`ManagerInputValueStream`, `ManagerDeviceMatchingStream`,
+  `ManagerDeviceRemovalStream`, `ManagerInputReportStream`) now carry an
+  explicit `# Prerequisites` section documenting that
+  `HidManager::set_device_matching` (or a variant) **must** be called before
+  subscribing, to avoid the `SIGTRAP` IOKit raises when a manager is scheduled
+  on a run loop without a device-matching filter.
+- **SAFETY comments**: added `// SAFETY:` comments to every raw-pointer
+  dereference inside the seven `async_api` stream callbacks.
+
 ## [0.7.0] - 2026-05-17
 
 ### Added

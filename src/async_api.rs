@@ -15,7 +15,7 @@
 //!
 //! # Stream surfaces
 //!
-//! | Stream type | IOKit registration | Event payload |
+//! | Stream type | `IOKit` registration | Event payload |
 //! |---|---|---|
 //! | [`ManagerInputValueStream`] | `IOHIDManagerRegisterInputValueCallback` | [`InputValueEvent`] |
 //! | [`ManagerDeviceMatchingStream`] | `IOHIDManagerRegisterDeviceMatchingCallback` | [`DeviceMatchingEvent`] |
@@ -24,6 +24,26 @@
 //! | [`DeviceRemovalStream`] | `IOHIDDeviceRegisterRemovalCallback` | `()` |
 //! | [`DeviceInputValueStream`] | `IOHIDDeviceRegisterInputValueCallback` | [`HidValue`] |
 //! | [`QueueValueStream`] | `IOHIDQueueRegisterValueAvailableCallback` | `()` |
+//!
+//! # Prerequisites for manager-level streams
+//!
+//! Before calling [`ManagerInputValueStream::subscribe`],
+//! [`ManagerDeviceMatchingStream::subscribe`],
+//! [`ManagerDeviceRemovalStream::subscribe`], or
+//! [`ManagerInputReportStream::subscribe`] you **must** call
+//! [`crate::HidManager::set_device_matching`] (or its `_dict` / `_multiple`
+//! variants) on the manager.  Scheduling an `IOHIDManager` on a `CFRunLoop`
+//! without a device-matching filter causes `IOKit` to raise `SIGTRAP`; passing
+//! `None` matches all devices.
+//!
+//! ```no_run
+//! use iohidmanager::prelude::*;
+//! use iohidmanager::async_api::ManagerDeviceMatchingStream;
+//!
+//! let manager = HidManager::new().unwrap();
+//! manager.set_device_matching(None).unwrap(); // required before any subscribe call
+//! let stream = ManagerDeviceMatchingStream::subscribe(&manager, 32);
+//! ```
 
 use std::sync::mpsc;
 use std::thread;
@@ -125,6 +145,9 @@ unsafe extern "C" fn mgr_input_value_cb(
         return;
     };
     let device = HidDevice::from_raw_retained(sender.cast());
+    // SAFETY: context is non-null (checked above) and points to the
+    // `AsyncStreamSender<InputValueEvent>` that was `Box::into_raw`'d in
+    // `subscribe()`; it lives until the run-loop cleanup block drops it.
     let tx = unsafe { &*context.cast::<AsyncStreamSender<InputValueEvent>>() };
     tx.push(InputValueEvent { device, value });
 }
@@ -145,6 +168,13 @@ impl ManagerInputValueStream {
     ///
     /// `capacity` is the number of events the bounded buffer can hold before
     /// the oldest item is dropped (lossy by design).
+    ///
+    /// # Prerequisites
+    ///
+    /// Call [`crate::HidManager::set_device_matching`] (or its `_dict` /
+    /// `_multiple` variants) on `manager` **before** subscribing.  `IOKit`
+    /// raises `SIGTRAP` if the manager is scheduled on a run loop without a
+    /// device-matching filter; passing `None` matches all devices.
     #[must_use]
     pub fn subscribe(manager: &HidManager, capacity: usize) -> Self {
         let (stream, sender) = BoundedAsyncStream::new(capacity);
@@ -233,6 +263,9 @@ unsafe extern "C" fn mgr_device_matching_cb(
         return;
     }
     let device = HidDevice::from_raw_retained(device);
+    // SAFETY: context is non-null (checked above) and points to the
+    // `AsyncStreamSender<DeviceMatchingEvent>` that was `Box::into_raw`'d in
+    // `subscribe()`; it lives until the run-loop cleanup block drops it.
     let tx = unsafe { &*context.cast::<AsyncStreamSender<DeviceMatchingEvent>>() };
     tx.push(DeviceMatchingEvent { device });
 }
@@ -249,6 +282,16 @@ unsafe impl Sync for ManagerDeviceMatchingStream {}
 
 impl ManagerDeviceMatchingStream {
     /// Subscribe to device-matching events on `manager`.
+    ///
+    /// `capacity` is the number of events the bounded buffer can hold before
+    /// the oldest item is dropped (lossy by design).
+    ///
+    /// # Prerequisites
+    ///
+    /// Call [`crate::HidManager::set_device_matching`] (or its `_dict` /
+    /// `_multiple` variants) on `manager` **before** subscribing.  `IOKit`
+    /// raises `SIGTRAP` if the manager is scheduled on a run loop without a
+    /// device-matching filter; passing `None` matches all devices.
     #[must_use]
     pub fn subscribe(manager: &HidManager, capacity: usize) -> Self {
         let (stream, sender) = BoundedAsyncStream::new(capacity);
@@ -335,6 +378,9 @@ unsafe extern "C" fn mgr_device_removal_cb(
         return;
     }
     let device = HidDevice::from_raw_retained(device);
+    // SAFETY: context is non-null (checked above) and points to the
+    // `AsyncStreamSender<DeviceRemovalEvent>` that was `Box::into_raw`'d in
+    // `subscribe()`; it lives until the run-loop cleanup block drops it.
     let tx = unsafe { &*context.cast::<AsyncStreamSender<DeviceRemovalEvent>>() };
     tx.push(DeviceRemovalEvent { device });
 }
@@ -351,6 +397,16 @@ unsafe impl Sync for ManagerDeviceRemovalStream {}
 
 impl ManagerDeviceRemovalStream {
     /// Subscribe to device-removal events on `manager`.
+    ///
+    /// `capacity` is the number of events the bounded buffer can hold before
+    /// the oldest item is dropped (lossy by design).
+    ///
+    /// # Prerequisites
+    ///
+    /// Call [`crate::HidManager::set_device_matching`] (or its `_dict` /
+    /// `_multiple` variants) on `manager` **before** subscribing.  `IOKit`
+    /// raises `SIGTRAP` if the manager is scheduled on a run loop without a
+    /// device-matching filter; passing `None` matches all devices.
     #[must_use]
     pub fn subscribe(manager: &HidManager, capacity: usize) -> Self {
         let (stream, sender) = BoundedAsyncStream::new(capacity);
@@ -446,6 +502,9 @@ unsafe extern "C" fn mgr_input_report_cb(
     let length = usize::try_from(report_length).unwrap_or(0);
     let bytes = unsafe { core::slice::from_raw_parts(report.cast_const(), length) }.to_vec();
     let device = HidDevice::from_raw_retained(sender.cast());
+    // SAFETY: context is non-null (checked above) and points to the
+    // `AsyncStreamSender<InputReportEvent>` that was `Box::into_raw`'d in
+    // `subscribe()`; it lives until the run-loop cleanup block drops it.
     let tx = unsafe { &*context.cast::<AsyncStreamSender<InputReportEvent>>() };
     tx.push(InputReportEvent {
         device,
@@ -470,6 +529,16 @@ unsafe impl Sync for ManagerInputReportStream {}
 
 impl ManagerInputReportStream {
     /// Subscribe to raw HID-report events on `manager`.
+    ///
+    /// `capacity` is the number of events the bounded buffer can hold before
+    /// the oldest item is dropped (lossy by design).
+    ///
+    /// # Prerequisites
+    ///
+    /// Call [`crate::HidManager::set_device_matching`] (or its `_dict` /
+    /// `_multiple` variants) on `manager` **before** subscribing.  `IOKit`
+    /// raises `SIGTRAP` if the manager is scheduled on a run loop without a
+    /// device-matching filter; passing `None` matches all devices.
     #[must_use]
     pub fn subscribe(manager: &HidManager, capacity: usize) -> Self {
         let (stream, sender) = BoundedAsyncStream::new(capacity);
@@ -558,6 +627,9 @@ unsafe extern "C" fn dev_removal_cb(
     if context.is_null() || result != ffi::kIOReturnSuccess {
         return;
     }
+    // SAFETY: context is non-null (checked above) and points to the
+    // `AsyncStreamSender<()>` that was `Box::into_raw`'d in `subscribe()`;
+    // it lives until the run-loop cleanup block drops it.
     let tx = unsafe { &*context.cast::<AsyncStreamSender<()>>() };
     tx.push(());
 }
@@ -672,6 +744,9 @@ unsafe extern "C" fn dev_input_value_cb(
     let Some(value) = clone_value_ref(value) else {
         return;
     };
+    // SAFETY: context is non-null (checked above) and points to the
+    // `AsyncStreamSender<HidValue>` that was `Box::into_raw`'d in
+    // `subscribe()`; it lives until the run-loop cleanup block drops it.
     let tx = unsafe { &*context.cast::<AsyncStreamSender<HidValue>>() };
     tx.push(value);
 }
@@ -781,6 +856,9 @@ unsafe extern "C" fn queue_value_available_cb(
     if context.is_null() || result != ffi::kIOReturnSuccess {
         return;
     }
+    // SAFETY: context is non-null (checked above) and points to the
+    // `AsyncStreamSender<()>` that was `Box::into_raw`'d in `subscribe()`;
+    // it lives until the run-loop cleanup block drops it.
     let tx = unsafe { &*context.cast::<AsyncStreamSender<()>>() };
     tx.push(());
 }

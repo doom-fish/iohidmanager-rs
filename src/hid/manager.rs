@@ -1,6 +1,8 @@
 use core::ffi::c_void;
 use core::ptr;
 
+use doom_fish_utils::panic_safe::catch_user_panic;
+
 #[allow(clippy::wildcard_imports)]
 use super::*;
 use crate::ffi_impl as ffi;
@@ -42,8 +44,13 @@ unsafe extern "C" fn manager_device_trampoline(
         return;
     }
     unsafe { ffi::CFRetain(device.cast_const()) };
+    // SAFETY: context is non-null (checked above) and points to a
+    // `ManagerDeviceContext` whose `callback` field was `Box::into_raw`'d
+    // when the subscription was created.
     let callback = unsafe { &*(*context.cast::<ManagerDeviceContext>()).callback };
-    callback(HidDevice { raw: device });
+    catch_user_panic("manager_device_trampoline", || {
+        callback(HidDevice { raw: device });
+    });
 }
 
 unsafe extern "C" fn manager_report_trampoline(
@@ -64,16 +71,21 @@ unsafe extern "C" fn manager_report_trampoline(
     };
     let length = usize::try_from(report_length).unwrap_or(0);
     let bytes = unsafe { core::slice::from_raw_parts(report.cast_const(), length) }.to_vec();
+    // SAFETY: context is non-null (checked above) and points to a
+    // `ManagerReportContext` whose `callback` field was `Box::into_raw`'d
+    // when the subscription was created.
     let callback = unsafe { &*(*context.cast::<ManagerReportContext>()).callback };
-    callback(
-        device,
-        HidInputReport {
-            report_type: HidReportType::from_raw(report_type),
-            report_id,
-            bytes,
-            timestamp: 0,
-        },
-    );
+    catch_user_panic("manager_report_trampoline", || {
+        callback(
+            device,
+            HidInputReport {
+                report_type: HidReportType::from_raw(report_type),
+                report_id,
+                bytes,
+                timestamp: 0,
+            },
+        );
+    });
 }
 
 unsafe extern "C" fn manager_timestamped_report_trampoline(
@@ -95,16 +107,21 @@ unsafe extern "C" fn manager_timestamped_report_trampoline(
     };
     let length = usize::try_from(report_length).unwrap_or(0);
     let bytes = unsafe { core::slice::from_raw_parts(report.cast_const(), length) }.to_vec();
+    // SAFETY: context is non-null (checked above) and points to a
+    // `ManagerReportContext` whose `callback` field was `Box::into_raw`'d
+    // when the subscription was created.
     let callback = unsafe { &*(*context.cast::<ManagerReportContext>()).callback };
-    callback(
-        device,
-        HidInputReport {
-            report_type: HidReportType::from_raw(report_type),
-            report_id,
-            bytes,
-            timestamp,
-        },
-    );
+    catch_user_panic("manager_timestamped_report_trampoline", || {
+        callback(
+            device,
+            HidInputReport {
+                report_type: HidReportType::from_raw(report_type),
+                report_id,
+                bytes,
+                timestamp,
+            },
+        );
+    });
 }
 
 unsafe extern "C" fn manager_value_trampoline(
@@ -122,8 +139,13 @@ unsafe extern "C" fn manager_value_trampoline(
     let Some(value) = clone_value_ref(value) else {
         return;
     };
+    // SAFETY: context is non-null (checked above) and points to a
+    // `ManagerValueContext` whose `callback` field was `Box::into_raw`'d
+    // when the subscription was created.
     let callback = unsafe { &*(*context.cast::<ManagerValueContext>()).callback };
-    callback(device, &value);
+    catch_user_panic("manager_value_trampoline", || {
+        callback(device, &value);
+    });
 }
 
 fn retained_device_from_sender(sender: *mut c_void) -> Option<HidDevice> {
