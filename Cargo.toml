@@ -1,6 +1,6 @@
 [package]
 name = "iohidmanager"
-version = "0.6.1"
+version = "0.7.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/iohidmanager-rs"
@@ -40,11 +40,14 @@ crate-type = ["lib"]
 [features]
 default = ["raw-ffi"]
 raw-ffi = []
+async = []
 
 [dependencies]
+doom-fish-utils = { path = "../doom-fish-utils", version = "0.1" }
 
 [dev-dependencies]
 regex-lite = "0.1"
+pollster = "0.3"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -102,6 +105,10 @@ name = "15_event_system_catalog"
 
 [[example]]
 name = "16_low_level_sdk_types"
+
+[[example]]
+name = "17_async_stream"
+required-features = ["async"]
 
 [profile.release]
 debug = "full"

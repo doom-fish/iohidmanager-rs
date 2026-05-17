@@ -16,6 +16,10 @@ pub mod error;
 pub(crate) mod ffi_impl;
 pub mod hid;
 
+#[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
+pub mod async_api;
+
 #[cfg(feature = "raw-ffi")]
 pub mod ffi {
     pub use crate::ffi_impl::*;

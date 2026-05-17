@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.7.0] - 2026-05-17
+
+### Added
+
+- `async` Cargo feature (disabled by default) exposing the new `async_api` module.
+- 7 executor-agnostic async stream types, each wrapping an `IOKit` HID callback API
+  as a `BoundedAsyncStream<T>` (from `doom-fish-utils`):
+  - `ManagerInputValueStream` — `IOHIDManagerRegisterInputValueCallback`
+  - `ManagerDeviceMatchingStream` — `IOHIDManagerRegisterDeviceMatchingCallback`
+  - `ManagerDeviceRemovalStream` — `IOHIDManagerRegisterDeviceRemovalCallback`
+  - `ManagerInputReportStream` — `IOHIDManagerRegisterInputReportCallback`
+  - `DeviceRemovalStream` — `IOHIDDeviceRegisterRemovalCallback`
+  - `DeviceInputValueStream` — `IOHIDDeviceRegisterInputValueCallback`
+  - `QueueValueStream` — `IOHIDQueueRegisterValueAvailableCallback`
+- Each stream spawns a dedicated background `CFRunLoop` thread; no async runtime is required.
+- `HidDevice::from_raw_retained` (pub crate) helper for constructing owned device handles from borrowed IOKit refs.
+- `CFRunLoopRun` / `CFRunLoopStop` FFI declarations.
+
 ## [0.6.1] - 2026-05-16
 
 ### Added

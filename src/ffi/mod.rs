@@ -522,6 +522,8 @@ extern "C" {
     pub fn CFSetGetValues(set: CFSetRef, values: *mut *const c_void);
 
     pub fn CFRunLoopGetCurrent() -> CFRunLoopRef;
+    pub fn CFRunLoopRun();
+    pub fn CFRunLoopStop(rl: CFRunLoopRef);
 
     pub fn IOHIDManagerGetTypeID() -> CFTypeID;
     pub fn IOHIDManagerCreate(allocator: CFAllocatorRef, options: IOOptionBits) -> IOHIDManagerRef;

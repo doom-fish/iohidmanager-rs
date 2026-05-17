@@ -1023,6 +1023,14 @@ impl HidDevice {
     pub const fn as_ptr(&self) -> ffi::IOHIDDeviceRef {
         self.raw
     }
+
+    /// Create a `HidDevice` from a raw ref that we do **not** already own;
+    /// `CFRetain` is called so the resulting wrapper releases on drop.
+    pub(crate) fn from_raw_retained(raw: ffi::IOHIDDeviceRef) -> Self {
+        debug_assert!(!raw.is_null());
+        unsafe { ffi::CFRetain(raw.cast_const()) };
+        Self { raw }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -1587,7 +1595,7 @@ unsafe fn close_and_unschedule_device(device: ffi::IOHIDDeviceRef, run_loop: ffi
     let _ = ffi::IOHIDDeviceClose(device, ffi::kIOHIDOptionsTypeNone);
 }
 
-fn clone_value_ref(raw: ffi::IOHIDValueRef) -> Option<HidValue> {
+pub(crate) fn clone_value_ref(raw: ffi::IOHIDValueRef) -> Option<HidValue> {
     if raw.is_null() {
         return None;
     }

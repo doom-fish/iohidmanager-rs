@@ -2,7 +2,7 @@
 
 Safe Rust bindings for Apple's [IOKit HID](https://developer.apple.com/documentation/iokit/iohidmanager_h) subsystem on macOS — enumerate connected mice, keyboards, gamepads, and other HID devices.
 
-> **Status:** actively developed. v0.6 ships a Swift bridge for `IOKit/hid`, keeps the raw C surface behind the `raw-ffi` feature (enabled by default), and adds logical-area coverage for Manager, Device, Element, Value, Transaction, Queue, Keys, Usage, ServicePlugIn, and EventSystem.
+> **Status:** actively developed. v0.7 adds an executor-agnostic `async` feature with 7 stream types wrapping every IOKit HID callback API; v0.6 ships a Swift bridge for `IOKit/hid`, keeps the raw C surface behind the `raw-ffi` feature (enabled by default), and adds logical-area coverage for Manager, Device, Element, Value, Transaction, Queue, Keys, Usage, ServicePlugIn, and EventSystem.
 
 ## Quick start
 
@@ -34,6 +34,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+## Highlights in v0.7
+
+- `async` Cargo feature exposing 7 executor-agnostic stream types wrapping every `IOKit` HID callback API.
+- Each stream spawns a dedicated background `CFRunLoop` thread — no async runtime required.
+- Stream types: `ManagerInputValueStream`, `ManagerDeviceMatchingStream`, `ManagerDeviceRemovalStream`, `ManagerInputReportStream`, `DeviceRemovalStream`, `DeviceInputValueStream`, `QueueValueStream`.
+
 ## Highlights in v0.6
 
 - Swift bridge target under `swift-bridge/` with one Swift file per logical area.
@@ -49,6 +55,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Feature flags
 
 - `raw-ffi` *(default)* — re-export the raw `iohidmanager::ffi` module.
+- `async` — enable the `async_api` module with 7 executor-agnostic stream types.
 
 Disable default features if you only want the safe surface:
 
@@ -71,7 +78,7 @@ cargo add iohidmanager --no-default-features
 
 ## Examples
 
-The crate ships 15 examples, including:
+The crate ships 17 examples, including:
 
 - `06_manager_callbacks`
 - `07_device_roundtrip`
@@ -83,6 +90,7 @@ The crate ships 15 examples, including:
 - `13_usage_catalog`
 - `14_service_plugin_ids`
 - `15_event_system_catalog`
+- `17_async_stream` (requires `--features async`)
 
 Run them all with:
 
