@@ -12,15 +12,14 @@
 use core::ffi::{c_char, c_void};
 
 pub use apple_cf::raw::{
-    CFAllocatorRef, CFArrayRef, CFDataRef, CFDictionaryRef, CFIndex, CFMutableArrayRef,
-    CFMutableDictionaryRef, CFNumberRef, CFRunLoopRef, CFSetRef, CFStringRef, CFTimeInterval,
-    CFTypeID, CFTypeRef, CFUUIDBytes,
+    Boolean, CFAllocatorRef, CFArrayRef, CFDataRef, CFDictionaryRef, CFIndex,
+    CFMutableArrayRef, CFMutableDictionaryRef, CFNumberRef, CFRunLoopRef, CFSetRef,
+    CFStringRef, CFTimeInterval, CFTypeID, CFTypeRef, CFUUIDBytes,
 };
 
 pub type dispatch_queue_t = *mut c_void;
 pub type dispatch_block_t = *mut c_void;
 pub type io_service_t = u32;
-pub type Boolean = u8;
 
 pub use iokit::ffi::{
     IOHIDDeviceRef, IOHIDElementRef, IOHIDManagerRef, IOHIDReportType, IOHIDValueRef, IOOptionBits,

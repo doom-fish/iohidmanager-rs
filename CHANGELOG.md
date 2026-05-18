@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.1] - 2026-05-18
+
+### Changed
+
+- chore: re-export OS primitives (Boolean) from apple-cf
+
 ## [0.10.0] - 2026-05-18
 
 ### Changed
