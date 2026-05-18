@@ -8,15 +8,25 @@ use std::fmt;
 use crate::error::HidError;
 use crate::ffi_impl as ffi;
 
+/// Device helpers wrapping `IOHIDDevice*` APIs.
 pub mod device;
+/// Element helpers wrapping `IOHIDElement*` APIs.
 pub mod element;
+/// Event-system keys and option constants mirrored from `IOHIDEventSystemKeys.h`.
 pub mod event_system;
+/// Property keys and option constants mirrored from `IOHIDKeys.h`.
 pub mod keys;
+/// Manager helpers wrapping `IOHIDManager*` callbacks and option flags.
 pub mod manager;
+/// Queue helpers wrapping `IOHIDQueue*` APIs.
 pub mod queue;
+/// Service plug-in UUIDs and COM-style interfaces mirrored from `IOHIDDevicePlugIn.h`.
 pub mod service_plugin;
+/// Transaction helpers wrapping `IOHIDTransaction*` APIs.
 pub mod transaction;
+/// Usage-page and usage constants mirrored from `IOHIDUsageTables.h`.
 pub mod usage;
+/// Value helpers wrapping `IOHIDValue*` APIs.
 pub mod value;
 
 pub use device::DeviceRemovalSubscription;
@@ -27,64 +37,103 @@ pub use manager::{
 pub use queue::{HidQueue, HidQueueOptions, QueueValueAvailableSubscription};
 pub use transaction::{HidTransaction, HidTransactionDirection, HidTransactionOptions};
 
+/// Aliases `IOHIDDeviceGetValueOptions`.
 pub type IOHIDDeviceGetValueOptions = ffi::IOHIDDeviceGetValueOptions;
+/// Mirrors `kIOHIDDeviceGetValueWithUpdate`.
 pub const DEVICE_GET_VALUE_WITH_UPDATE: IOHIDDeviceGetValueOptions =
     ffi::kIOHIDDeviceGetValueWithUpdate;
+/// Mirrors `kIOHIDDeviceGetValueWithoutUpdate`.
 pub const DEVICE_GET_VALUE_WITHOUT_UPDATE: IOHIDDeviceGetValueOptions =
     ffi::kIOHIDDeviceGetValueWithoutUpdate;
 
+/// Aliases `IOHIDElementCommitDirection`.
 pub type IOHIDElementCommitDirection = ffi::IOHIDElementCommitDirection;
+/// Mirrors `kIOHIDElementCommitDirectionIn`.
 pub const ELEMENT_COMMIT_DIRECTION_IN: IOHIDElementCommitDirection =
     ffi::kIOHIDElementCommitDirectionIn;
+/// Mirrors `kIOHIDElementCommitDirectionOut`.
 pub const ELEMENT_COMMIT_DIRECTION_OUT: IOHIDElementCommitDirection =
     ffi::kIOHIDElementCommitDirectionOut;
 
+/// Aliases `IOHIDElementCookie`.
 pub type IOHIDElementCookie = ffi::IOHIDElementCookie;
+/// Aliases `IOHIDElementFlags`.
 pub type IOHIDElementFlags = ffi::IOHIDElementFlags;
+/// Mirrors `kIOHIDElementFlagsConstantMask`.
 pub const ELEMENT_FLAGS_CONSTANT_MASK: IOHIDElementFlags = ffi::kIOHIDElementFlagsConstantMask;
+/// Mirrors `kIOHIDElementFlagsVariableMask`.
 pub const ELEMENT_FLAGS_VARIABLE_MASK: IOHIDElementFlags = ffi::kIOHIDElementFlagsVariableMask;
+/// Mirrors `kIOHIDElementFlagsRelativeMask`.
 pub const ELEMENT_FLAGS_RELATIVE_MASK: IOHIDElementFlags = ffi::kIOHIDElementFlagsRelativeMask;
+/// Mirrors `kIOHIDElementFlagsWrapMask`.
 pub const ELEMENT_FLAGS_WRAP_MASK: IOHIDElementFlags = ffi::kIOHIDElementFlagsWrapMask;
+/// Mirrors `kIOHIDElementFlagsNonLinearMask`.
 pub const ELEMENT_FLAGS_NON_LINEAR_MASK: IOHIDElementFlags = ffi::kIOHIDElementFlagsNonLinearMask;
+/// Mirrors `kIOHIDElementFlagsNoPreferredMask`.
 pub const ELEMENT_FLAGS_NO_PREFERRED_MASK: IOHIDElementFlags =
     ffi::kIOHIDElementFlagsNoPreferredMask;
+/// Mirrors `kIOHIDElementFlagsNullStateMask`.
 pub const ELEMENT_FLAGS_NULL_STATE_MASK: IOHIDElementFlags = ffi::kIOHIDElementFlagsNullStateMask;
+/// Mirrors `kIOHIDElementFlagsVolativeMask`.
 pub const ELEMENT_FLAGS_VOLATIVE_MASK: IOHIDElementFlags = ffi::kIOHIDElementFlagsVolativeMask;
+/// Mirrors `kIOHIDElementFlagsBufferedByteMask`.
 pub const ELEMENT_FLAGS_BUFFERED_BYTE_MASK: IOHIDElementFlags =
     ffi::kIOHIDElementFlagsBufferedByteMask;
 
+/// Aliases `IOHIDValueOptions`.
 pub type IOHIDValueOptions = ffi::IOHIDValueOptions;
+/// Mirrors `kIOHIDValueOptionsFlagRelativeSimple`.
 pub const VALUE_OPTIONS_FLAG_RELATIVE_SIMPLE: IOHIDValueOptions =
     ffi::kIOHIDValueOptionsFlagRelativeSimple;
+/// Mirrors `kIOHIDValueOptionsFlagPrevious`.
 pub const VALUE_OPTIONS_FLAG_PREVIOUS: IOHIDValueOptions = ffi::kIOHIDValueOptionsFlagPrevious;
+/// Mirrors `kIOHIDValueOptionsUpdateElementValues`.
 pub const VALUE_OPTIONS_UPDATE_ELEMENT_VALUES: IOHIDValueOptions =
     ffi::kIOHIDValueOptionsUpdateElementValues;
 
+/// Aliases `IOHIDCompletionAction`.
 pub type IOHIDCompletionAction = ffi::IOHIDCompletionAction;
+/// Aliases `IOHIDCompletion`.
 pub type IOHIDCompletion = ffi::IOHIDCompletion;
+/// Aliases `HIDReportCommandType`.
 pub type HIDReportCommandType = ffi::HIDReportCommandType;
+/// Mirrors `kIOHIDReportCommandSetReport`.
 pub const REPORT_COMMAND_SET_REPORT: HIDReportCommandType = ffi::kIOHIDReportCommandSetReport;
+/// Mirrors `kIOHIDReportCommandGetReport`.
 pub const REPORT_COMMAND_GET_REPORT: HIDReportCommandType = ffi::kIOHIDReportCommandGetReport;
+/// Mirrors `kIOHIDReportOptionNotInterrupt`.
 pub const REPORT_OPTION_NOT_INTERRUPT: ffi::IOOptionBits = ffi::kIOHIDReportOptionNotInterrupt;
+/// Mirrors `kIOHIDReportOptionVariableSize`.
 pub const REPORT_OPTION_VARIABLE_SIZE: ffi::IOOptionBits = ffi::kIOHIDReportOptionVariableSize;
+/// Mirrors `kIOHIDDeviceDefaultAsyncRequestTimeout`.
 pub const DEVICE_DEFAULT_ASYNC_REQUEST_TIMEOUT: u64 = ffi::kIOHIDDeviceDefaultAsyncRequestTimeout;
+/// Mirrors `kIOHIDDeviceMinAsyncRequestTimeout`.
 pub const DEVICE_MIN_ASYNC_REQUEST_TIMEOUT: u64 = ffi::kIOHIDDeviceMinAsyncRequestTimeout;
+/// Mirrors `kIOHIDDeviceMaxAsyncRequestTimeout`.
 pub const DEVICE_MAX_ASYNC_REQUEST_TIMEOUT: u64 = ffi::kIOHIDDeviceMaxAsyncRequestTimeout;
 
+/// Aliases `IOHIDManagerOptions`.
 pub type IOHIDManagerOptions = ffi::IOHIDManagerOptions;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
+/// Describes a `(usage_page, usage)` pair used by `IOHIDManagerSetDeviceMatching`.
 pub enum HidUsage {
+    /// Matches `kHIDUsage_GD_Keyboard` on `kHIDPage_GenericDesktop`.
     Keyboard,
+    /// Matches `kHIDUsage_GD_Mouse` on `kHIDPage_GenericDesktop`.
     Mouse,
+    /// Matches `kHIDUsage_GD_Joystick` on `kHIDPage_GenericDesktop`.
     Joystick,
+    /// Matches `kHIDUsage_GD_GamePad` on `kHIDPage_GenericDesktop`.
     GamePad,
+    /// Matches an arbitrary `(usage_page, usage)` pair.
     Custom(u32, u32),
 }
 
 impl HidUsage {
     #[must_use]
+    /// Returns the `(usage_page, usage)` pair consumed by `IOHIDManagerSetDeviceMatching`.
     pub const fn as_pair(self) -> (u32, u32) {
         match self {
             Self::Keyboard => (ffi::kHIDPage_GenericDesktop, ffi::kHIDUsage_GD_Keyboard),
@@ -103,22 +152,26 @@ enum MatchValue {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
+/// Builds matching dictionaries for `IOHIDManagerSetDeviceMatching`.
 pub struct DeviceMatch {
     entries: Vec<(String, MatchValue)>,
 }
 
 impl DeviceMatch {
     #[must_use]
+    /// Creates an empty device-matching dictionary for `IOHIDManagerSetDeviceMatching`.
     pub fn new() -> Self {
         Self::default()
     }
 
     #[must_use]
+    /// Creates a device-matching dictionary from a `HidUsage` pair.
     pub fn usage(usage: HidUsage) -> Self {
         Self::new().with_usage(usage)
     }
 
     #[must_use]
+    /// Adds `kIOHIDDeviceUsagePageKey` and `kIOHIDDeviceUsageKey`.
     pub fn with_usage(mut self, usage: HidUsage) -> Self {
         let (page, usage) = usage.as_pair();
         self.insert(ffi::kIOHIDDeviceUsagePageKey, MatchValue::U32(page));
@@ -127,24 +180,28 @@ impl DeviceMatch {
     }
 
     #[must_use]
+    /// Adds `kIOHIDVendorIDKey`.
     pub fn with_vendor_id(mut self, vendor_id: u32) -> Self {
         self.insert(ffi::kIOHIDVendorIDKey, MatchValue::U32(vendor_id));
         self
     }
 
     #[must_use]
+    /// Adds `kIOHIDProductIDKey`.
     pub fn with_product_id(mut self, product_id: u32) -> Self {
         self.insert(ffi::kIOHIDProductIDKey, MatchValue::U32(product_id));
         self
     }
 
     #[must_use]
+    /// Adds `kIOHIDLocationIDKey`.
     pub fn with_location_id(mut self, location_id: u32) -> Self {
         self.insert(ffi::kIOHIDLocationIDKey, MatchValue::U32(location_id));
         self
     }
 
     #[must_use]
+    /// Adds `kIOHIDTransportKey`.
     pub fn with_transport(mut self, transport: impl Into<String>) -> Self {
         self.insert(
             ffi::kIOHIDTransportKey,
@@ -154,18 +211,21 @@ impl DeviceMatch {
     }
 
     #[must_use]
+    /// Adds an arbitrary integer entry to the matching dictionary.
     pub fn with_u32(mut self, key: &str, value: u32) -> Self {
         self.insert(key, MatchValue::U32(value));
         self
     }
 
     #[must_use]
+    /// Adds an arbitrary string entry to the matching dictionary.
     pub fn with_string(mut self, key: &str, value: impl Into<String>) -> Self {
         self.insert(key, MatchValue::String(value.into()));
         self
     }
 
     #[must_use]
+    /// Returns `true` when no entries will be passed to `IOHIDManagerSetDeviceMatching`.
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
@@ -188,22 +248,26 @@ impl DeviceMatch {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
+/// Builds matching dictionaries for `IOHIDDeviceSetInputValueMatching` and `IOHIDManagerSetInputValueMatching`.
 pub struct ElementMatch {
     entries: Vec<(String, MatchValue)>,
 }
 
 impl ElementMatch {
     #[must_use]
+    /// Creates an empty element-matching dictionary for `IOHIDDeviceSetInputValueMatching`.
     pub fn new() -> Self {
         Self::default()
     }
 
     #[must_use]
+    /// Creates an element-matching dictionary from a `HidUsage` pair.
     pub fn usage(usage: HidUsage) -> Self {
         Self::new().with_usage(usage)
     }
 
     #[must_use]
+    /// Adds `kIOHIDElementUsagePageKey` and `kIOHIDElementUsageKey`.
     pub fn with_usage(mut self, usage: HidUsage) -> Self {
         let (page, usage) = usage.as_pair();
         self.insert(ffi::kIOHIDElementUsagePageKey, MatchValue::U32(page));
@@ -212,60 +276,70 @@ impl ElementMatch {
     }
 
     #[must_use]
+    /// Adds `kIOHIDElementUsagePageKey`.
     pub fn with_usage_page(mut self, usage_page: u32) -> Self {
         self.insert(ffi::kIOHIDElementUsagePageKey, MatchValue::U32(usage_page));
         self
     }
 
     #[must_use]
+    /// Adds `kIOHIDElementUsageKey`.
     pub fn with_usage_id(mut self, usage: u32) -> Self {
         self.insert(ffi::kIOHIDElementUsageKey, MatchValue::U32(usage));
         self
     }
 
     #[must_use]
+    /// Adds `kIOHIDElementUsageMinKey`.
     pub fn with_usage_min(mut self, usage_min: u32) -> Self {
         self.insert(ffi::kIOHIDElementUsageMinKey, MatchValue::U32(usage_min));
         self
     }
 
     #[must_use]
+    /// Adds `kIOHIDElementUsageMaxKey`.
     pub fn with_usage_max(mut self, usage_max: u32) -> Self {
         self.insert(ffi::kIOHIDElementUsageMaxKey, MatchValue::U32(usage_max));
         self
     }
 
     #[must_use]
+    /// Adds `kIOHIDElementCookieMinKey`.
     pub fn with_cookie_min(mut self, cookie_min: u32) -> Self {
         self.insert(ffi::kIOHIDElementCookieMinKey, MatchValue::U32(cookie_min));
         self
     }
 
     #[must_use]
+    /// Adds `kIOHIDElementCookieMaxKey`.
     pub fn with_cookie_max(mut self, cookie_max: u32) -> Self {
         self.insert(ffi::kIOHIDElementCookieMaxKey, MatchValue::U32(cookie_max));
         self
     }
 
     #[must_use]
+    /// Adds `kIOHIDElementReportIDKey`.
     pub fn with_report_id(mut self, report_id: u32) -> Self {
         self.insert(ffi::kIOHIDElementReportIDKey, MatchValue::U32(report_id));
         self
     }
 
     #[must_use]
+    /// Adds an arbitrary integer entry to the element-matching dictionary.
     pub fn with_u32(mut self, key: &str, value: u32) -> Self {
         self.insert(key, MatchValue::U32(value));
         self
     }
 
     #[must_use]
+    /// Adds an arbitrary string entry to the element-matching dictionary.
     pub fn with_string(mut self, key: &str, value: impl Into<String>) -> Self {
         self.insert(key, MatchValue::String(value.into()));
         self
     }
 
     #[must_use]
+    /// Returns `true` when no entries will be passed to `IOHIDDeviceSetInputValueMatching`.
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
@@ -289,15 +363,21 @@ impl ElementMatch {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
+/// Wraps `IOHIDReportType`.
 pub enum HidReportType {
+    /// Mirrors `kIOHIDReportTypeInput`.
     Input,
+    /// Mirrors `kIOHIDReportTypeOutput`.
     Output,
+    /// Mirrors `kIOHIDReportTypeFeature`.
     Feature,
+    /// Preserves an unrecognized raw `IOHIDReportType` value.
     Unknown(u32),
 }
 
 impl HidReportType {
     #[must_use]
+    /// Returns the raw `IOHIDReportType` constant.
     pub const fn as_raw(self) -> u32 {
         match self {
             Self::Input => ffi::kIOHIDReportTypeInput,
@@ -308,6 +388,7 @@ impl HidReportType {
     }
 
     #[must_use]
+    /// Wraps a raw `IOHIDReportType` constant.
     pub const fn from_raw(raw: u32) -> Self {
         match raw {
             ffi::kIOHIDReportTypeInput => Self::Input,
@@ -319,14 +400,19 @@ impl HidReportType {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Wraps the scale constants consumed by `IOHIDValueGetScaledValue`.
 pub enum HidValueScale {
+    /// Mirrors `kIOHIDValueScaleTypeCalibrated`.
     Calibrated,
+    /// Mirrors `kIOHIDValueScaleTypePhysical`.
     Physical,
+    /// Mirrors `kIOHIDValueScaleTypeExponent`.
     Exponent,
 }
 
 impl HidValueScale {
     #[must_use]
+    /// Returns the raw scale constant consumed by `IOHIDValueGetScaledValue`.
     pub const fn as_raw(self) -> u32 {
         match self {
             Self::Calibrated => ffi::kIOHIDValueScaleTypeCalibrated,
@@ -338,20 +424,31 @@ impl HidValueScale {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
+/// Wraps the raw element-type values returned by `IOHIDElementGetType`.
 pub enum HidElementType {
+    /// Represents an input-misc element from `IOHIDElementGetType`.
     InputMisc,
+    /// Represents an input-button element from `IOHIDElementGetType`.
     InputButton,
+    /// Represents an input-axis element from `IOHIDElementGetType`.
     InputAxis,
+    /// Represents an input-scan-code element from `IOHIDElementGetType`.
     InputScanCodes,
+    /// Represents an input-null element from `IOHIDElementGetType`.
     InputNull,
+    /// Represents an output element from `IOHIDElementGetType`.
     Output,
+    /// Represents a feature element from `IOHIDElementGetType`.
     Feature,
+    /// Represents a collection element from `IOHIDElementGetType`.
     Collection,
+    /// Preserves an unrecognized raw element-type value.
     Unknown(i32),
 }
 
 impl HidElementType {
     #[must_use]
+    /// Wraps the raw value returned by `IOHIDElementGetType`.
     pub const fn from_raw(raw: i32) -> Self {
         match raw {
             1 => Self::InputMisc,
@@ -369,19 +466,29 @@ impl HidElementType {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
+/// Wraps the raw collection-type values returned by `IOHIDElementGetCollectionType`.
 pub enum HidCollectionType {
+    /// Represents a physical collection from `IOHIDElementGetCollectionType`.
     Physical,
+    /// Represents an application collection from `IOHIDElementGetCollectionType`.
     Application,
+    /// Represents a logical collection from `IOHIDElementGetCollectionType`.
     Logical,
+    /// Represents a report collection from `IOHIDElementGetCollectionType`.
     Report,
+    /// Represents a named-array collection from `IOHIDElementGetCollectionType`.
     NamedArray,
+    /// Represents a usage-switch collection from `IOHIDElementGetCollectionType`.
     UsageSwitch,
+    /// Represents a usage-modifier collection from `IOHIDElementGetCollectionType`.
     UsageModifier,
+    /// Preserves an unrecognized raw collection-type value.
     Unknown(i32),
 }
 
 impl HidCollectionType {
     #[must_use]
+    /// Wraps the raw value returned by `IOHIDElementGetCollectionType`.
     pub const fn from_raw(raw: i32) -> Self {
         match raw {
             0 => Self::Physical,
@@ -397,26 +504,42 @@ impl HidCollectionType {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Carries one callback payload from `IOHIDDeviceRegisterInputReportCallback` or `IOHIDManagerRegisterInputReportCallback`.
 pub struct HidInputReport {
+    /// Report kind from `IOHIDReportType`.
     pub report_type: HidReportType,
+    /// Report ID supplied by the callback.
     pub report_id: u32,
+    /// Report bytes supplied by the callback.
     pub bytes: Vec<u8>,
+    /// Timestamp from `IOHID*RegisterInputReportWithTimeStampCallback`, or `0` when unavailable.
     pub timestamp: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// Collects common `IOHIDDeviceGetProperty` values.
 pub struct HidDeviceInfo {
+    /// Value read from `kIOHIDVendorIDKey`.
     pub vendor_id: Option<u32>,
+    /// Value read from `kIOHIDProductIDKey`.
     pub product_id: Option<u32>,
+    /// Value read from `kIOHIDProductKey`.
     pub product: Option<String>,
+    /// Value read from `kIOHIDManufacturerKey`.
     pub manufacturer: Option<String>,
+    /// Value read from `kIOHIDSerialNumberKey`.
     pub serial_number: Option<String>,
+    /// Value read from `kIOHIDTransportKey`.
     pub transport: Option<String>,
+    /// Value read from `kIOHIDPrimaryUsagePageKey` or `kIOHIDDeviceUsagePageKey`.
     pub usage_page: Option<u32>,
+    /// Value read from `kIOHIDPrimaryUsageKey` or `kIOHIDDeviceUsageKey`.
     pub usage: Option<u32>,
+    /// Value read from `kIOHIDLocationIDKey`.
     pub location_id: Option<u32>,
 }
 
+/// Owns an `IOHIDManagerRef` returned by `IOHIDManagerCreate`.
 pub struct HidManager {
     raw: ffi::IOHIDManagerRef,
 }
@@ -439,14 +562,17 @@ impl Drop for HidManager {
 #[allow(clippy::missing_errors_doc)]
 impl HidManager {
     #[must_use]
+    /// Wraps `IOHIDManagerGetTypeID`.
     pub fn type_id() -> ffi::CFTypeID {
         unsafe { ffi::IOHIDManagerGetTypeID() }
     }
 
+    /// Wraps `IOHIDManagerCreate` with `kIOHIDManagerOptionNone`.
     pub fn new() -> Result<Self, HidError> {
         Self::with_options(HidManagerOptions::NONE)
     }
 
+    /// Wraps `IOHIDManagerSetDeviceMatching`.
     pub fn set_device_matching(&self, usage: Option<HidUsage>) -> Result<(), HidError> {
         usage.map_or_else(
             || {
@@ -457,6 +583,7 @@ impl HidManager {
         )
     }
 
+    /// Wraps `IOHIDManagerSetDeviceMatching` with a custom dictionary.
     pub fn set_device_matching_dict(&self, matching: Option<&DeviceMatch>) -> Result<(), HidError> {
         match matching {
             None => unsafe {
@@ -474,6 +601,7 @@ impl HidManager {
         }
     }
 
+    /// Wraps `IOHIDManagerSetDeviceMatchingMultiple`.
     pub fn set_device_matching_multiple(&self, matches: &[DeviceMatch]) -> Result<(), HidError> {
         if matches.is_empty() {
             unsafe { ffi::IOHIDManagerSetDeviceMatchingMultiple(self.raw, ptr::null()) };
@@ -487,6 +615,7 @@ impl HidManager {
         Ok(())
     }
 
+    /// Wraps `IOHIDManagerSaveToPropertyDomain`.
     pub fn save_to_property_domain(
         &self,
         application_id: &str,
@@ -522,6 +651,7 @@ impl HidManager {
     }
 
     #[must_use]
+    /// Reads `IOHIDManagerGetProperty` as a `u32`.
     pub fn property_u32(&self, key: &str) -> Option<u32> {
         with_cfstring(key, |key_cf| unsafe {
             read_cf_u32(ffi::IOHIDManagerGetProperty(self.raw, key_cf))
@@ -531,6 +661,7 @@ impl HidManager {
     }
 
     #[must_use]
+    /// Reads `IOHIDManagerGetProperty` as a `String`.
     pub fn property_string(&self, key: &str) -> Option<String> {
         with_cfstring(key, |key_cf| unsafe {
             read_cf_string(ffi::IOHIDManagerGetProperty(self.raw, key_cf))
@@ -540,6 +671,7 @@ impl HidManager {
     }
 
     #[must_use]
+    /// Reads `IOHIDManagerGetProperty` as `CFData` bytes.
     pub fn property_data(&self, key: &str) -> Option<Vec<u8>> {
         with_cfstring(key, |key_cf| unsafe {
             read_cf_data(ffi::IOHIDManagerGetProperty(self.raw, key_cf))
@@ -548,6 +680,7 @@ impl HidManager {
         .flatten()
     }
 
+    /// Wraps `IOHIDManagerSetProperty` for numeric values.
     pub fn set_property_u32(&self, key: &str, value: u32) -> Result<(), HidError> {
         let value_cf = make_cfnumber_u32(value)?;
         let ok = with_cfstring(key, |key_cf| unsafe {
@@ -561,6 +694,7 @@ impl HidManager {
         }
     }
 
+    /// Wraps `IOHIDManagerSetProperty` for string values.
     pub fn set_property_string(&self, key: &str, value: &str) -> Result<(), HidError> {
         let value_cf = make_cfstring(value)?;
         let ok = with_cfstring(key, |key_cf| unsafe {
@@ -574,6 +708,7 @@ impl HidManager {
         }
     }
 
+    /// Wraps `IOHIDManagerSetProperty` for `CFData` bytes.
     pub fn set_property_data(&self, key: &str, value: &[u8]) -> Result<(), HidError> {
         let value_cf = make_cfdata(value)?;
         let ok = with_cfstring(key, |key_cf| unsafe {
@@ -588,6 +723,7 @@ impl HidManager {
     }
 
     #[must_use]
+    /// Wraps `IOHIDManagerCopyDevices` and snapshots each device's properties.
     pub fn devices(&self) -> Vec<HidDeviceInfo> {
         let set = unsafe { ffi::IOHIDManagerCopyDevices(self.raw) };
         if set.is_null() {
@@ -607,6 +743,7 @@ impl HidManager {
     }
 
     #[must_use]
+    /// Wraps `IOHIDManagerCopyDevices` and retains live `IOHIDDeviceRef` handles.
     pub fn live_devices(&self) -> Vec<HidDevice> {
         let set = unsafe { ffi::IOHIDManagerCopyDevices(self.raw) };
         if set.is_null() {
@@ -629,11 +766,13 @@ impl HidManager {
     }
 
     #[must_use]
+    /// Mirrors `IOHIDManagerRef`.
     pub const fn as_ptr(&self) -> ffi::IOHIDManagerRef {
         self.raw
     }
 }
 
+/// Owns an `IOHIDDeviceRef` returned by `IOHIDManagerCopyDevices` or `IOHIDDeviceCreate`.
 pub struct HidDevice {
     raw: ffi::IOHIDDeviceRef,
 }
@@ -660,27 +799,32 @@ impl Drop for HidDevice {
 #[allow(clippy::missing_errors_doc, clippy::type_complexity)]
 impl HidDevice {
     #[must_use]
+    /// Wraps `IOHIDDeviceGetTypeID`.
     pub fn type_id() -> ffi::CFTypeID {
         unsafe { ffi::IOHIDDeviceGetTypeID() }
     }
 
     #[must_use]
+    /// Snapshots common `IOHIDDeviceGetProperty` values.
     pub fn info(&self) -> HidDeviceInfo {
         read_device_info(self.raw)
     }
 
     #[must_use]
+    /// Wraps `IOHIDDeviceGetService`.
     pub fn service(&self) -> ffi::io_service_t {
         unsafe { ffi::IOHIDDeviceGetService(self.raw) }
     }
 
     #[must_use]
+    /// Wraps `IOHIDDeviceConformsTo`.
     pub fn conforms_to(&self, usage: HidUsage) -> bool {
         let (page, usage) = usage.as_pair();
         unsafe { ffi::IOHIDDeviceConformsTo(self.raw, page, usage) }
     }
 
     #[must_use]
+    /// Reads `IOHIDDeviceGetProperty` as a `u32`.
     pub fn property_u32(&self, key: &str) -> Option<u32> {
         with_cfstring(key, |key_cf| unsafe {
             read_cf_u32(ffi::IOHIDDeviceGetProperty(self.raw, key_cf))
@@ -690,6 +834,7 @@ impl HidDevice {
     }
 
     #[must_use]
+    /// Reads `IOHIDDeviceGetProperty` as a `String`.
     pub fn property_string(&self, key: &str) -> Option<String> {
         with_cfstring(key, |key_cf| unsafe {
             read_cf_string(ffi::IOHIDDeviceGetProperty(self.raw, key_cf))
@@ -699,6 +844,7 @@ impl HidDevice {
     }
 
     #[must_use]
+    /// Reads `IOHIDDeviceGetProperty` as `CFData` bytes.
     pub fn property_data(&self, key: &str) -> Option<Vec<u8>> {
         with_cfstring(key, |key_cf| unsafe {
             read_cf_data(ffi::IOHIDDeviceGetProperty(self.raw, key_cf))
@@ -708,10 +854,12 @@ impl HidDevice {
     }
 
     #[must_use]
+    /// Reads the `kIOHIDReportDescriptorKey` property.
     pub fn report_descriptor(&self) -> Option<Vec<u8>> {
         self.property_data(ffi::kIOHIDReportDescriptorKey)
     }
 
+    /// Wraps `IOHIDDeviceSetProperty` for numeric values.
     pub fn set_property_u32(&self, key: &str, value: u32) -> Result<(), HidError> {
         let value_cf = make_cfnumber_u32(value)?;
         let ok = with_cfstring(key, |key_cf| unsafe {
@@ -725,6 +873,7 @@ impl HidDevice {
         }
     }
 
+    /// Wraps `IOHIDDeviceSetProperty` for string values.
     pub fn set_property_string(&self, key: &str, value: &str) -> Result<(), HidError> {
         let value_cf = make_cfstring(value)?;
         let ok = with_cfstring(key, |key_cf| unsafe {
@@ -738,6 +887,7 @@ impl HidDevice {
         }
     }
 
+    /// Wraps `IOHIDDeviceSetProperty` for `CFData` bytes.
     pub fn set_property_data(&self, key: &str, value: &[u8]) -> Result<(), HidError> {
         let value_cf = make_cfdata(value)?;
         let ok = with_cfstring(key, |key_cf| unsafe {
@@ -751,6 +901,7 @@ impl HidDevice {
         }
     }
 
+    /// Wraps `IOHIDDeviceSetInputValueMatching`.
     pub fn set_input_value_matching(
         &self,
         matching: Option<&ElementMatch>,
@@ -771,6 +922,7 @@ impl HidDevice {
         }
     }
 
+    /// Wraps `IOHIDDeviceSetInputValueMatchingMultiple`.
     pub fn set_input_value_matching_multiple(
         &self,
         matches: &[ElementMatch],
@@ -787,6 +939,7 @@ impl HidDevice {
         Ok(())
     }
 
+    /// Wraps `IOHIDDeviceRegisterInputReportCallback`.
     pub fn on_input_report<F>(
         &self,
         max_report_length: usize,
@@ -832,6 +985,7 @@ impl HidDevice {
         })
     }
 
+    /// Wraps `IOHIDDeviceRegisterInputReportWithTimeStampCallback`.
     pub fn on_input_report_with_timestamp<F>(
         &self,
         max_report_length: usize,
@@ -877,6 +1031,7 @@ impl HidDevice {
         })
     }
 
+    /// Wraps `IOHIDDeviceRegisterInputValueCallback`.
     pub fn on_input_value<F>(&self, callback: F) -> Result<ValueSubscription, HidError>
     where
         F: Fn(&HidValue) + Send + Sync + 'static,
@@ -904,11 +1059,13 @@ impl HidDevice {
     }
 
     #[must_use]
+    /// Wraps `IOHIDDeviceCopyMatchingElements` with no filter.
     pub fn elements(&self) -> Vec<HidElement> {
         self.matching_elements(None)
     }
 
     #[must_use]
+    /// Wraps `IOHIDDeviceCopyMatchingElements`.
     pub fn matching_elements(&self, matching: Option<&ElementMatch>) -> Vec<HidElement> {
         let dict = matching.and_then(|matching| matching.to_cf_dictionary().ok());
         let elements = unsafe {
@@ -924,6 +1081,7 @@ impl HidDevice {
         elements_from_array(elements, true)
     }
 
+    /// Wraps `IOHIDDeviceGetValue`.
     pub fn get_value(&self, element: &HidElement) -> Result<HidValue, HidError> {
         let mut value = ptr::null();
         let status = unsafe { ffi::IOHIDDeviceGetValue(self.raw, element.raw, &mut value) };
@@ -933,6 +1091,7 @@ impl HidDevice {
         clone_value_ref(value).ok_or(HidError::OperationFailed("IOHIDDeviceGetValue"))
     }
 
+    /// Wraps `IOHIDDeviceGetValueWithOptions`.
     pub fn get_value_with_options(
         &self,
         element: &HidElement,
@@ -948,6 +1107,7 @@ impl HidDevice {
         clone_value_ref(value).ok_or(HidError::OperationFailed("IOHIDDeviceGetValueWithOptions"))
     }
 
+    /// Wraps `IOHIDDeviceSetValue`.
     pub fn set_value(&self, element: &HidElement, value: &HidValue) -> Result<(), HidError> {
         let status = unsafe { ffi::IOHIDDeviceSetValue(self.raw, element.raw, value.raw) };
         if status == ffi::kIOReturnSuccess {
@@ -957,6 +1117,7 @@ impl HidDevice {
         }
     }
 
+    /// Wraps `IOHIDDeviceGetReport`.
     pub fn get_report(
         &self,
         report_type: HidReportType,
@@ -989,6 +1150,7 @@ impl HidDevice {
         Ok(buffer)
     }
 
+    /// Wraps `IOHIDDeviceSetReport`.
     pub fn set_report(
         &self,
         report_type: HidReportType,
@@ -1016,12 +1178,14 @@ impl HidDevice {
     }
 
     #[must_use]
+    /// Mirrors `IOHIDDeviceRef`.
     pub const fn as_ptr(&self) -> ffi::IOHIDDeviceRef {
         self.raw
     }
 
     /// Create a `HidDevice` from a raw ref that we do **not** already own;
     /// `CFRetain` is called so the resulting wrapper releases on drop.
+    #[cfg(feature = "async")]
     pub(crate) fn from_raw_retained(raw: ffi::IOHIDDeviceRef) -> Self {
         debug_assert!(!raw.is_null());
         unsafe { ffi::CFRetain(raw) };
@@ -1030,6 +1194,7 @@ impl HidDevice {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Wraps an `IOHIDElementRef`.
 pub struct HidElement {
     raw: ffi::IOHIDElementRef,
 }
@@ -1040,21 +1205,25 @@ unsafe impl Sync for HidElement {}
 #[allow(clippy::missing_errors_doc)]
 impl HidElement {
     #[must_use]
+    /// Wraps `IOHIDElementGetTypeID`.
     pub fn type_id() -> ffi::CFTypeID {
         unsafe { ffi::IOHIDElementGetTypeID() }
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementGetType`.
     pub fn element_type(&self) -> i32 {
         unsafe { ffi::IOHIDElementGetType(self.raw) }
     }
 
     #[must_use]
+    /// Classifies the raw value from `IOHIDElementGetType`.
     pub fn element_kind(&self) -> HidElementType {
         HidElementType::from_raw(self.element_type())
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementGetCollectionType` for collection elements.
     pub fn collection_type(&self) -> Option<HidCollectionType> {
         if self.element_kind() != HidElementType::Collection {
             return None;
@@ -1065,122 +1234,146 @@ impl HidElement {
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementGetUsage`.
     pub fn usage(&self) -> u32 {
         unsafe { ffi::IOHIDElementGetUsage(self.raw) }
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementGetUsagePage`.
     pub fn usage_page(&self) -> u32 {
         unsafe { ffi::IOHIDElementGetUsagePage(self.raw) }
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementGetCookie`.
     pub fn cookie(&self) -> IOHIDElementCookie {
         unsafe { ffi::IOHIDElementGetCookie(self.raw) }
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementIsVirtual`.
     pub fn is_virtual(&self) -> bool {
         unsafe { ffi::IOHIDElementIsVirtual(self.raw) }
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementIsRelative`.
     pub fn is_relative(&self) -> bool {
         unsafe { ffi::IOHIDElementIsRelative(self.raw) }
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementIsWrapping`.
     pub fn is_wrapping(&self) -> bool {
         unsafe { ffi::IOHIDElementIsWrapping(self.raw) }
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementIsArray`.
     pub fn is_array(&self) -> bool {
         unsafe { ffi::IOHIDElementIsArray(self.raw) }
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementIsNonLinear`.
     pub fn is_non_linear(&self) -> bool {
         unsafe { ffi::IOHIDElementIsNonLinear(self.raw) }
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementHasPreferredState`.
     pub fn has_preferred_state(&self) -> bool {
         unsafe { ffi::IOHIDElementHasPreferredState(self.raw) }
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementHasNullState`.
     pub fn has_null_state(&self) -> bool {
         unsafe { ffi::IOHIDElementHasNullState(self.raw) }
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementGetName`.
     pub fn name(&self) -> Option<String> {
         read_cf_string(unsafe { ffi::IOHIDElementGetName(self.raw).cast() })
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementGetReportID`.
     pub fn report_id(&self) -> u32 {
         unsafe { ffi::IOHIDElementGetReportID(self.raw) }
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementGetReportSize`.
     pub fn report_size_bits(&self) -> u32 {
         unsafe { ffi::IOHIDElementGetReportSize(self.raw) }
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementGetReportCount`.
     pub fn report_count(&self) -> u32 {
         unsafe { ffi::IOHIDElementGetReportCount(self.raw) }
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementGetUnit`.
     pub fn unit(&self) -> u32 {
         unsafe { ffi::IOHIDElementGetUnit(self.raw) }
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementGetUnitExponent`.
     pub fn unit_exponent(&self) -> u32 {
         unsafe { ffi::IOHIDElementGetUnitExponent(self.raw) }
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementGetLogicalMin`.
     pub fn logical_min(&self) -> i64 {
         unsafe { ffi::IOHIDElementGetLogicalMin(self.raw) as i64 }
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementGetLogicalMax`.
     pub fn logical_max(&self) -> i64 {
         unsafe { ffi::IOHIDElementGetLogicalMax(self.raw) as i64 }
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementGetPhysicalMin`.
     pub fn physical_min(&self) -> i64 {
         unsafe { ffi::IOHIDElementGetPhysicalMin(self.raw) as i64 }
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementGetPhysicalMax`.
     pub fn physical_max(&self) -> i64 {
         unsafe { ffi::IOHIDElementGetPhysicalMax(self.raw) as i64 }
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementGetParent`.
     pub fn parent(&self) -> Option<Self> {
         let parent = unsafe { ffi::IOHIDElementGetParent(self.raw) };
         (!parent.is_null()).then_some(Self { raw: parent })
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementGetChildren`.
     pub fn children(&self) -> Vec<Self> {
         elements_from_array(unsafe { ffi::IOHIDElementGetChildren(self.raw) }, false)
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementCopyAttached`.
     pub fn attached(&self) -> Vec<Self> {
         elements_from_array(unsafe { ffi::IOHIDElementCopyAttached(self.raw) }, true)
     }
 
     #[must_use]
+    /// Wraps `IOHIDElementGetDevice`.
     pub fn device(&self) -> Option<HidDevice> {
         let device = unsafe { ffi::IOHIDElementGetDevice(self.raw) };
         if device.is_null() {
@@ -1192,6 +1385,7 @@ impl HidElement {
     }
 
     #[must_use]
+    /// Reads `IOHIDElementGetProperty` as a `u32`.
     pub fn property_u32(&self, key: &str) -> Option<u32> {
         with_cfstring(key, |key_cf| unsafe {
             read_cf_u32(ffi::IOHIDElementGetProperty(self.raw, key_cf))
@@ -1201,6 +1395,7 @@ impl HidElement {
     }
 
     #[must_use]
+    /// Reads `IOHIDElementGetProperty` as a `String`.
     pub fn property_string(&self, key: &str) -> Option<String> {
         with_cfstring(key, |key_cf| unsafe {
             read_cf_string(ffi::IOHIDElementGetProperty(self.raw, key_cf))
@@ -1210,6 +1405,7 @@ impl HidElement {
     }
 
     #[must_use]
+    /// Reads `IOHIDElementGetProperty` as `CFData` bytes.
     pub fn property_data(&self, key: &str) -> Option<Vec<u8>> {
         with_cfstring(key, |key_cf| unsafe {
             read_cf_data(ffi::IOHIDElementGetProperty(self.raw, key_cf))
@@ -1218,6 +1414,7 @@ impl HidElement {
         .flatten()
     }
 
+    /// Wraps `IOHIDElementSetProperty` for numeric values.
     pub fn set_property_u32(&self, key: &str, value: u32) -> Result<(), HidError> {
         let value_cf = make_cfnumber_u32(value)?;
         let ok = with_cfstring(key, |key_cf| unsafe {
@@ -1231,6 +1428,7 @@ impl HidElement {
         }
     }
 
+    /// Wraps `IOHIDElementSetProperty` for string values.
     pub fn set_property_string(&self, key: &str, value: &str) -> Result<(), HidError> {
         let value_cf = make_cfstring(value)?;
         let ok = with_cfstring(key, |key_cf| unsafe {
@@ -1244,6 +1442,7 @@ impl HidElement {
         }
     }
 
+    /// Wraps `IOHIDElementSetProperty` for `CFData` bytes.
     pub fn set_property_data(&self, key: &str, value: &[u8]) -> Result<(), HidError> {
         let value_cf = make_cfdata(value)?;
         let ok = with_cfstring(key, |key_cf| unsafe {
@@ -1258,11 +1457,13 @@ impl HidElement {
     }
 
     #[must_use]
+    /// Mirrors `IOHIDElementRef`.
     pub const fn as_ptr(&self) -> ffi::IOHIDElementRef {
         self.raw
     }
 }
 
+/// Owns an `IOHIDValueRef`.
 pub struct HidValue {
     raw: ffi::IOHIDValueRef,
 }
@@ -1301,10 +1502,12 @@ impl Drop for HidValue {
 #[allow(clippy::missing_errors_doc)]
 impl HidValue {
     #[must_use]
+    /// Wraps `IOHIDValueGetTypeID`.
     pub fn type_id() -> ffi::CFTypeID {
         unsafe { ffi::IOHIDValueGetTypeID() }
     }
 
+    /// Wraps `IOHIDValueCreateWithIntegerValue`.
     pub fn from_integer(element: HidElement, timestamp: u64, value: i64) -> Result<Self, HidError> {
         let value = ffi::CFIndex::try_from(value).map_err(|_| {
             HidError::InvalidArgument("integer value does not fit CFIndex".to_owned())
@@ -1326,6 +1529,7 @@ impl HidValue {
         }
     }
 
+    /// Wraps `IOHIDValueCreateWithBytes`.
     pub fn from_bytes(element: HidElement, timestamp: u64, bytes: &[u8]) -> Result<Self, HidError> {
         let length = ffi::CFIndex::try_from(bytes.len()).map_err(|_| {
             HidError::InvalidArgument("byte slice length does not fit CFIndex".to_owned())
@@ -1347,6 +1551,7 @@ impl HidValue {
     }
 
     #[must_use]
+    /// Wraps `IOHIDValueGetElement`.
     pub fn element(&self) -> HidElement {
         HidElement {
             raw: unsafe { ffi::IOHIDValueGetElement(self.raw) },
@@ -1354,21 +1559,25 @@ impl HidValue {
     }
 
     #[must_use]
+    /// Wraps `IOHIDValueGetTimeStamp`.
     pub fn timestamp(&self) -> u64 {
         unsafe { ffi::IOHIDValueGetTimeStamp(self.raw) }
     }
 
     #[must_use]
+    /// Wraps `IOHIDValueGetLength`.
     pub fn len(&self) -> usize {
         usize::try_from(unsafe { ffi::IOHIDValueGetLength(self.raw) }).unwrap_or(0)
     }
 
     #[must_use]
+    /// Returns `true` when `IOHIDValueGetLength` is zero.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
     #[must_use]
+    /// Wraps `IOHIDValueGetBytePtr`.
     pub fn bytes(&self) -> Vec<u8> {
         let length = self.len();
         if length == 0 {
@@ -1382,16 +1591,19 @@ impl HidValue {
     }
 
     #[must_use]
+    /// Wraps `IOHIDValueGetIntegerValue`.
     pub fn integer_value(&self) -> i64 {
         unsafe { ffi::IOHIDValueGetIntegerValue(self.raw) as i64 }
     }
 
     #[must_use]
+    /// Wraps `IOHIDValueGetScaledValue`.
     pub fn scaled_value(&self, scale: HidValueScale) -> f64 {
         unsafe { ffi::IOHIDValueGetScaledValue(self.raw, scale.as_raw()) }
     }
 
     #[must_use]
+    /// Mirrors `IOHIDValueRef`.
     pub const fn as_ptr(&self) -> ffi::IOHIDValueRef {
         self.raw
     }
@@ -1479,6 +1691,7 @@ unsafe extern "C" fn value_trampoline(
     callback(&value);
 }
 
+/// Owns a registration from `IOHIDDeviceRegisterInputReportCallback`.
 pub struct ReportSubscription {
     device: ffi::IOHIDDeviceRef,
     run_loop: ffi::CFRunLoopRef,
@@ -1514,6 +1727,7 @@ impl Drop for ReportSubscription {
     }
 }
 
+/// Owns a registration from `IOHIDDeviceRegisterInputReportWithTimeStampCallback`.
 pub struct TimestampedReportSubscription {
     device: ffi::IOHIDDeviceRef,
     run_loop: ffi::CFRunLoopRef,
@@ -1549,6 +1763,7 @@ impl Drop for TimestampedReportSubscription {
     }
 }
 
+/// Owns a registration from `IOHIDDeviceRegisterInputValueCallback`.
 pub struct ValueSubscription {
     device: ffi::IOHIDDeviceRef,
     run_loop: ffi::CFRunLoopRef,

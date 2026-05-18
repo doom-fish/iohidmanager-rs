@@ -23,18 +23,23 @@ unsafe extern "C" fn queue_value_trampoline(
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Wraps the option bits consumed by `IOHIDQueueCreate`.
 pub struct HidQueueOptions(u32);
 
 impl HidQueueOptions {
+    /// Mirrors `kIOHIDQueueOptionsTypeNone`.
     pub const NONE: Self = Self(ffi::kIOHIDQueueOptionsTypeNone);
+    /// Mirrors `kIOHIDQueueOptionsTypeEnqueueAll`.
     pub const ENQUEUE_ALL: Self = Self(ffi::kIOHIDQueueOptionsTypeEnqueueAll);
 
     #[must_use]
+    /// Returns the raw option bits passed to `IOHIDQueueCreate`.
     pub const fn bits(self) -> u32 {
         self.0
     }
 }
 
+/// Owns an `IOHIDQueueRef` returned by `IOHIDQueueCreate`.
 pub struct HidQueue {
     raw: ffi::IOHIDQueueRef,
 }
@@ -58,6 +63,7 @@ impl Drop for HidQueue {
     }
 }
 
+/// Owns a registration from `IOHIDQueueRegisterValueAvailableCallback`.
 pub struct QueueValueAvailableSubscription {
     queue: ffi::IOHIDQueueRef,
     run_loop: ffi::CFRunLoopRef,
@@ -90,14 +96,17 @@ impl Drop for QueueValueAvailableSubscription {
 #[allow(clippy::missing_errors_doc)]
 impl HidQueue {
     #[must_use]
+    /// Wraps `IOHIDQueueGetTypeID`.
     pub fn type_id() -> ffi::CFTypeID {
         unsafe { bridge::iohidmanager_swift_queue_type_id() }
     }
 
+    /// Wraps `IOHIDQueueCreate` with `kIOHIDQueueOptionsTypeNone`.
     pub fn new(device: &HidDevice, depth: usize) -> Result<Self, HidError> {
         Self::with_options(device, depth, HidQueueOptions::NONE)
     }
 
+    /// Wraps `IOHIDQueueCreate`.
     pub fn with_options(
         device: &HidDevice,
         depth: usize,
@@ -116,6 +125,7 @@ impl HidQueue {
     }
 
     #[must_use]
+    /// Wraps `IOHIDQueueGetDevice`.
     pub fn device(&self) -> Option<HidDevice> {
         let device = unsafe { ffi::IOHIDQueueGetDevice(self.raw) };
         if device.is_null() {
@@ -127,10 +137,12 @@ impl HidQueue {
     }
 
     #[must_use]
+    /// Wraps `IOHIDQueueGetDepth`.
     pub fn depth(&self) -> usize {
         usize::try_from(unsafe { ffi::IOHIDQueueGetDepth(self.raw) }).unwrap_or(0)
     }
 
+    /// Wraps `IOHIDQueueSetDepth`.
     pub fn set_depth(&self, depth: usize) -> Result<(), HidError> {
         let depth = ffi::CFIndex::try_from(depth)
             .map_err(|_| HidError::InvalidArgument("depth does not fit CFIndex".to_owned()))?;
@@ -138,36 +150,44 @@ impl HidQueue {
         Ok(())
     }
 
+    /// Wraps `IOHIDQueueAddElement`.
     pub fn add_element(&self, element: &HidElement) {
         unsafe { ffi::IOHIDQueueAddElement(self.raw, element.raw) };
     }
 
+    /// Wraps `IOHIDQueueRemoveElement`.
     pub fn remove_element(&self, element: &HidElement) {
         unsafe { ffi::IOHIDQueueRemoveElement(self.raw, element.raw) };
     }
 
     #[must_use]
+    /// Wraps `IOHIDQueueContainsElement`.
     pub fn contains_element(&self, element: &HidElement) -> bool {
         unsafe { ffi::IOHIDQueueContainsElement(self.raw, element.raw) }
     }
 
+    /// Wraps `IOHIDQueueStart`.
     pub fn start(&self) {
         unsafe { ffi::IOHIDQueueStart(self.raw) };
     }
 
+    /// Wraps `IOHIDQueueStop`.
     pub fn stop(&self) {
         unsafe { ffi::IOHIDQueueStop(self.raw) };
     }
 
+    /// Wraps `IOHIDQueueActivate`.
     pub fn activate(&self) {
         unsafe { ffi::IOHIDQueueActivate(self.raw) };
     }
 
+    /// Wraps `IOHIDQueueCancel`.
     pub fn cancel(&self) {
         unsafe { ffi::IOHIDQueueCancel(self.raw) };
     }
 
     #[must_use]
+    /// Wraps `IOHIDQueueScheduleWithRunLoop` for the current run loop.
     pub fn schedule_current_run_loop(&self) -> ffi::CFRunLoopRef {
         let run_loop = unsafe { ffi::CFRunLoopGetCurrent() };
         unsafe {
@@ -177,6 +197,7 @@ impl HidQueue {
     }
 
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
+    /// Wraps `IOHIDQueueUnscheduleFromRunLoop`.
     pub fn unschedule_from_run_loop(&self, run_loop: ffi::CFRunLoopRef) {
         unsafe {
             ffi::IOHIDQueueUnscheduleFromRunLoop(self.raw, run_loop, ffi::kCFRunLoopDefaultMode);
@@ -184,15 +205,18 @@ impl HidQueue {
     }
 
     #[must_use]
+    /// Wraps `IOHIDQueueCopyNextValue`.
     pub fn copy_next_value(&self) -> Option<HidValue> {
         clone_value_ref(unsafe { ffi::IOHIDQueueCopyNextValue(self.raw) })
     }
 
     #[must_use]
+    /// Wraps `IOHIDQueueCopyNextValueWithTimeout`.
     pub fn copy_next_value_with_timeout(&self, timeout_ms: f64) -> Option<HidValue> {
         clone_value_ref(unsafe { ffi::IOHIDQueueCopyNextValueWithTimeout(self.raw, timeout_ms) })
     }
 
+    /// Wraps `IOHIDQueueRegisterValueAvailableCallback`.
     pub fn on_value_available<F>(
         &self,
         callback: F,
@@ -222,6 +246,7 @@ impl HidQueue {
     }
 
     #[must_use]
+    /// Mirrors `IOHIDQueueRef`.
     pub const fn as_ptr(&self) -> ffi::IOHIDQueueRef {
         self.raw
     }

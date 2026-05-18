@@ -21,6 +21,7 @@ pub mod hid;
 pub mod async_api;
 
 #[cfg(feature = "raw-ffi")]
+/// Raw `IOHID*` FFI re-exports from `crate::ffi_impl`.
 pub mod ffi {
     pub use crate::ffi_impl::*;
 }

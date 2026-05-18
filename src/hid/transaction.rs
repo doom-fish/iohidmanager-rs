@@ -5,13 +5,17 @@ use super::*;
 use crate::{bridge, ffi_impl as ffi};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Wraps `IOHIDTransactionDirectionType`.
 pub enum HidTransactionDirection {
+    /// Mirrors `kIOHIDTransactionDirectionTypeInput`.
     Input,
+    /// Mirrors `kIOHIDTransactionDirectionTypeOutput`.
     Output,
 }
 
 impl HidTransactionDirection {
     #[must_use]
+    /// Mirrors `IOHIDTransactionDirectionType`.
     pub const fn as_raw(self) -> ffi::IOHIDTransactionDirectionType {
         match self {
             Self::Input => ffi::kIOHIDTransactionDirectionTypeInput,
@@ -20,6 +24,7 @@ impl HidTransactionDirection {
     }
 
     #[must_use]
+    /// Mirrors `IOHIDTransactionDirectionType`.
     pub const fn from_raw(raw: ffi::IOHIDTransactionDirectionType) -> Self {
         match raw {
             ffi::kIOHIDTransactionDirectionTypeOutput => Self::Output,
@@ -29,18 +34,23 @@ impl HidTransactionDirection {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Wraps the option bits consumed by `IOHIDTransactionCreate`.
 pub struct HidTransactionOptions(u32);
 
 impl HidTransactionOptions {
+    /// Mirrors `kIOHIDTransactionOptionsNone`.
     pub const NONE: Self = Self(ffi::kIOHIDTransactionOptionsNone);
+    /// Mirrors `kIOHIDTransactionOptionsWeakDevice`.
     pub const WEAK_DEVICE: Self = Self(ffi::kIOHIDTransactionOptionsWeakDevice);
 
     #[must_use]
+    /// Returns the raw option bits passed to `IOHIDTransactionCreate`.
     pub const fn bits(self) -> u32 {
         self.0
     }
 }
 
+/// Owns an `IOHIDTransactionRef` returned by `IOHIDTransactionCreate`.
 pub struct HidTransaction {
     raw: ffi::IOHIDTransactionRef,
 }
@@ -67,14 +77,17 @@ impl Drop for HidTransaction {
 #[allow(clippy::missing_errors_doc)]
 impl HidTransaction {
     #[must_use]
+    /// Wraps `IOHIDTransactionGetTypeID`.
     pub fn type_id() -> ffi::CFTypeID {
         unsafe { bridge::iohidmanager_swift_transaction_type_id() }
     }
 
+    /// Wraps `IOHIDTransactionCreate` with `kIOHIDTransactionOptionsNone`.
     pub fn new(device: &HidDevice, direction: HidTransactionDirection) -> Result<Self, HidError> {
         Self::with_options(device, direction, HidTransactionOptions::NONE)
     }
 
+    /// Wraps `IOHIDTransactionCreate`.
     pub fn with_options(
         device: &HidDevice,
         direction: HidTransactionDirection,
@@ -96,6 +109,7 @@ impl HidTransaction {
     }
 
     #[must_use]
+    /// Wraps `IOHIDTransactionGetDevice`.
     pub fn device(&self) -> Option<HidDevice> {
         let device = unsafe { ffi::IOHIDTransactionGetDevice(self.raw) };
         if device.is_null() {
@@ -107,27 +121,33 @@ impl HidTransaction {
     }
 
     #[must_use]
+    /// Wraps `IOHIDTransactionGetDirection`.
     pub fn direction(&self) -> HidTransactionDirection {
         HidTransactionDirection::from_raw(unsafe { ffi::IOHIDTransactionGetDirection(self.raw) })
     }
 
+    /// Wraps `IOHIDTransactionSetDirection`.
     pub fn set_direction(&self, direction: HidTransactionDirection) {
         unsafe { ffi::IOHIDTransactionSetDirection(self.raw, direction.as_raw()) };
     }
 
+    /// Wraps `IOHIDTransactionAddElement`.
     pub fn add_element(&self, element: &HidElement) {
         unsafe { ffi::IOHIDTransactionAddElement(self.raw, element.raw) };
     }
 
+    /// Wraps `IOHIDTransactionRemoveElement`.
     pub fn remove_element(&self, element: &HidElement) {
         unsafe { ffi::IOHIDTransactionRemoveElement(self.raw, element.raw) };
     }
 
     #[must_use]
+    /// Wraps `IOHIDTransactionContainsElement`.
     pub fn contains_element(&self, element: &HidElement) -> bool {
         unsafe { ffi::IOHIDTransactionContainsElement(self.raw, element.raw) }
     }
 
+    /// Wraps `IOHIDTransactionScheduleWithRunLoop` for the current run loop.
     pub fn schedule_current_run_loop(&self) {
         let run_loop = unsafe { ffi::CFRunLoopGetCurrent() };
         unsafe {
@@ -139,6 +159,7 @@ impl HidTransaction {
         }
     }
 
+    /// Wraps `IOHIDTransactionUnscheduleFromRunLoop` for the current run loop.
     pub fn unschedule_current_run_loop(&self) {
         let run_loop = unsafe { ffi::CFRunLoopGetCurrent() };
         unsafe {
@@ -150,15 +171,18 @@ impl HidTransaction {
         }
     }
 
+    /// Wraps `IOHIDTransactionSetValue`.
     pub fn set_value(&self, element: &HidElement, value: &HidValue, options: ffi::IOOptionBits) {
         unsafe { ffi::IOHIDTransactionSetValue(self.raw, element.raw, value.raw, options) };
     }
 
     #[must_use]
+    /// Wraps `IOHIDTransactionGetValue`.
     pub fn get_value(&self, element: &HidElement, options: ffi::IOOptionBits) -> Option<HidValue> {
         clone_value_ref(unsafe { ffi::IOHIDTransactionGetValue(self.raw, element.raw, options) })
     }
 
+    /// Wraps `IOHIDTransactionCommit`.
     pub fn commit(&self) -> Result<(), HidError> {
         let status = unsafe { ffi::IOHIDTransactionCommit(self.raw) };
         if status == ffi::kIOReturnSuccess {
@@ -168,6 +192,7 @@ impl HidTransaction {
         }
     }
 
+    /// Wraps `IOHIDTransactionCommitWithCallback`.
     pub fn commit_with_timeout(&self, timeout_ms: f64) -> Result<(), HidError> {
         let status = unsafe {
             ffi::IOHIDTransactionCommitWithCallback(self.raw, timeout_ms, None, ptr::null_mut())
@@ -182,11 +207,13 @@ impl HidTransaction {
         }
     }
 
+    /// Wraps `IOHIDTransactionClear`.
     pub fn clear(&self) {
         unsafe { ffi::IOHIDTransactionClear(self.raw) };
     }
 
     #[must_use]
+    /// Mirrors `IOHIDTransactionRef`.
     pub const fn as_ptr(&self) -> ffi::IOHIDTransactionRef {
         self.raw
     }

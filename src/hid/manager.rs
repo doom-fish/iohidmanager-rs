@@ -169,6 +169,7 @@ unsafe fn unschedule_manager(manager: ffi::IOHIDManagerRef, run_loop: ffi::CFRun
     ffi::IOHIDManagerUnscheduleFromRunLoop(manager, run_loop, ffi::kCFRunLoopDefaultMode);
 }
 
+/// Owns a registration from `IOHIDManagerRegisterDeviceMatchingCallback` or `IOHIDManagerRegisterDeviceRemovalCallback`.
 pub struct ManagerDeviceSubscription {
     manager: ffi::IOHIDManagerRef,
     run_loop: ffi::CFRunLoopRef,
@@ -210,6 +211,7 @@ impl Drop for ManagerDeviceSubscription {
     }
 }
 
+/// Owns a registration from `IOHIDManagerRegisterInputReportCallback` or `IOHIDManagerRegisterInputReportWithTimeStampCallback`.
 pub struct ManagerReportSubscription {
     manager: ffi::IOHIDManagerRef,
     run_loop: ffi::CFRunLoopRef,
@@ -251,6 +253,7 @@ impl Drop for ManagerReportSubscription {
     }
 }
 
+/// Owns a registration from `IOHIDManagerRegisterInputValueCallback`.
 pub struct ManagerValueSubscription {
     manager: ffi::IOHIDManagerRef,
     run_loop: ffi::CFRunLoopRef,
@@ -277,22 +280,30 @@ impl Drop for ManagerValueSubscription {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+/// Wraps the `IOHIDManagerOptions` bitfield used by `IOHIDManagerCreate`.
 pub struct HidManagerOptions(u32);
 
 impl HidManagerOptions {
+    /// Mirrors `kIOHIDManagerOptionNone`.
     pub const NONE: Self = Self(ffi::kIOHIDManagerOptionNone);
+    /// Mirrors `kIOHIDManagerOptionUsePersistentProperties`.
     pub const USE_PERSISTENT_PROPERTIES: Self =
         Self(ffi::kIOHIDManagerOptionUsePersistentProperties);
+    /// Mirrors `kIOHIDManagerOptionDoNotLoadProperties`.
     pub const DO_NOT_LOAD_PROPERTIES: Self = Self(ffi::kIOHIDManagerOptionDoNotLoadProperties);
+    /// Mirrors `kIOHIDManagerOptionDoNotSaveProperties`.
     pub const DO_NOT_SAVE_PROPERTIES: Self = Self(ffi::kIOHIDManagerOptionDoNotSaveProperties);
+    /// Mirrors `kIOHIDManagerOptionIndependentDevices`.
     pub const INDEPENDENT_DEVICES: Self = Self(ffi::kIOHIDManagerOptionIndependentDevices);
 
     #[must_use]
+    /// Mirrors `IOHIDManagerOptions`.
     pub const fn bits(self) -> ffi::IOHIDManagerOptions {
         self.0
     }
 
     #[must_use]
+    /// Mirrors `IOHIDManagerOptions`.
     pub const fn from_bits(bits: ffi::IOHIDManagerOptions) -> Self {
         Self(bits)
     }
@@ -314,6 +325,7 @@ impl core::ops::BitOrAssign for HidManagerOptions {
 
 #[allow(clippy::missing_errors_doc, clippy::type_complexity)]
 impl HidManager {
+    /// Wraps `IOHIDManagerCreate` and `IOHIDManagerOpen`.
     pub fn with_options(options: HidManagerOptions) -> Result<Self, HidError> {
         let bits = options.bits();
         let raw = unsafe { ffi::IOHIDManagerCreate(ffi::kCFAllocatorDefault, bits) };
@@ -328,6 +340,7 @@ impl HidManager {
         Ok(Self { raw })
     }
 
+    /// Wraps `IOHIDManagerSaveToPropertyDomain` with `HidManagerOptions`.
     pub fn save_to_property_domain_with_options(
         &self,
         application_id: &str,
@@ -337,14 +350,17 @@ impl HidManager {
     ) -> Result<(), HidError> {
         self.save_to_property_domain(application_id, user_name, host_name, options.bits())
     }
+    /// Wraps `IOHIDManagerActivate`.
     pub fn activate(&self) {
         unsafe { ffi::IOHIDManagerActivate(self.raw) };
     }
 
+    /// Wraps `IOHIDManagerCancel`.
     pub fn cancel(&self) {
         unsafe { ffi::IOHIDManagerCancel(self.raw) };
     }
 
+    /// Wraps `IOHIDManagerSetInputValueMatching`.
     pub fn set_input_value_matching(
         &self,
         matching: Option<&ElementMatch>,
@@ -365,6 +381,7 @@ impl HidManager {
         }
     }
 
+    /// Wraps `IOHIDManagerSetInputValueMatchingMultiple`.
     pub fn set_input_value_matching_multiple(
         &self,
         matches: &[ElementMatch],
@@ -383,6 +400,7 @@ impl HidManager {
         Ok(())
     }
 
+    /// Wraps `IOHIDManagerRegisterDeviceMatchingCallback`.
     pub fn on_device_matching<F>(&self, callback: F) -> Result<ManagerDeviceSubscription, HidError>
     where
         F: Fn(HidDevice) + Send + Sync + 'static,
@@ -409,6 +427,7 @@ impl HidManager {
         })
     }
 
+    /// Wraps `IOHIDManagerRegisterDeviceRemovalCallback`.
     pub fn on_device_removal<F>(&self, callback: F) -> Result<ManagerDeviceSubscription, HidError>
     where
         F: Fn(HidDevice) + Send + Sync + 'static,
@@ -435,6 +454,7 @@ impl HidManager {
         })
     }
 
+    /// Wraps `IOHIDManagerRegisterInputReportCallback`.
     pub fn on_input_report<F>(&self, callback: F) -> Result<ManagerReportSubscription, HidError>
     where
         F: Fn(HidDevice, HidInputReport) + Send + Sync + 'static,
@@ -462,6 +482,7 @@ impl HidManager {
         })
     }
 
+    /// Wraps `IOHIDManagerRegisterInputReportWithTimeStampCallback`.
     pub fn on_input_report_with_timestamp<F>(
         &self,
         callback: F,
@@ -492,6 +513,7 @@ impl HidManager {
         })
     }
 
+    /// Wraps `IOHIDManagerRegisterInputValueCallback`.
     pub fn on_input_value<F>(&self, callback: F) -> Result<ManagerValueSubscription, HidError>
     where
         F: Fn(HidDevice, &HidValue) + Send + Sync + 'static,

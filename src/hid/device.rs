@@ -90,6 +90,7 @@ fn read_element_value_dictionary(dict: ffi::CFDictionaryRef) -> Vec<(HidElement,
         .collect()
 }
 
+/// Owns a registration from `IOHIDDeviceRegisterRemovalCallback`.
 pub struct DeviceRemovalSubscription {
     device: ffi::IOHIDDeviceRef,
     run_loop: ffi::CFRunLoopRef,
@@ -117,6 +118,7 @@ impl Drop for DeviceRemovalSubscription {
 
 #[allow(clippy::missing_errors_doc)]
 impl HidDevice {
+    /// Wraps `IOHIDDeviceCreate`.
     pub fn create(service: ffi::io_service_t) -> Result<Self, HidError> {
         let raw = unsafe { ffi::IOHIDDeviceCreate(ffi::kCFAllocatorDefault, service) };
         if raw.is_null() {
@@ -126,6 +128,7 @@ impl HidDevice {
         }
     }
 
+    /// Wraps `IOHIDDeviceOpen`.
     pub fn open_with_options(&self, options: ffi::IOHIDOptionsType) -> Result<(), HidError> {
         let status = unsafe { ffi::IOHIDDeviceOpen(self.raw, options) };
         if status == ffi::kIOReturnSuccess {
@@ -135,6 +138,7 @@ impl HidDevice {
         }
     }
 
+    /// Wraps `IOHIDDeviceClose`.
     pub fn close_with_options(&self, options: ffi::IOHIDOptionsType) -> Result<(), HidError> {
         let status = unsafe { ffi::IOHIDDeviceClose(self.raw, options) };
         if status == ffi::kIOReturnSuccess {
@@ -144,14 +148,17 @@ impl HidDevice {
         }
     }
 
+    /// Wraps `IOHIDDeviceActivate`.
     pub fn activate(&self) {
         unsafe { ffi::IOHIDDeviceActivate(self.raw) };
     }
 
+    /// Wraps `IOHIDDeviceCancel`.
     pub fn cancel(&self) {
         unsafe { ffi::IOHIDDeviceCancel(self.raw) };
     }
 
+    /// Wraps `IOHIDDeviceRegisterRemovalCallback`.
     pub fn on_removal<F>(&self, callback: F) -> Result<DeviceRemovalSubscription, HidError>
     where
         F: Fn() + Send + Sync + 'static,
@@ -177,6 +184,7 @@ impl HidDevice {
         })
     }
 
+    /// Wraps `IOHIDDeviceSetValueMultiple`.
     pub fn set_value_multiple(&self, values: &[(HidElement, HidValue)]) -> Result<(), HidError> {
         let dict = build_element_value_dictionary(values)?;
         let status = unsafe { ffi::IOHIDDeviceSetValueMultiple(self.raw, dict) };
@@ -188,6 +196,7 @@ impl HidDevice {
         }
     }
 
+    /// Wraps `IOHIDDeviceSetValueMultipleWithCallback`.
     pub fn set_value_multiple_with_timeout(
         &self,
         values: &[(HidElement, HidValue)],
@@ -214,6 +223,7 @@ impl HidDevice {
         }
     }
 
+    /// Wraps `IOHIDDeviceCopyValueMultiple`.
     pub fn copy_value_multiple(
         &self,
         elements: &[HidElement],
@@ -235,6 +245,7 @@ impl HidDevice {
         Ok(pairs)
     }
 
+    /// Wraps `IOHIDDeviceCopyValueMultipleWithCallback`.
     pub fn copy_value_multiple_with_timeout(
         &self,
         elements: &[HidElement],
@@ -269,6 +280,7 @@ impl HidDevice {
         Ok(pairs)
     }
 
+    /// Wraps `IOHIDDeviceSetValueWithCallback`.
     pub fn set_value_with_timeout(
         &self,
         element: &HidElement,
@@ -295,6 +307,7 @@ impl HidDevice {
         }
     }
 
+    /// Wraps `IOHIDDeviceGetValueWithCallback`.
     pub fn get_value_with_timeout(
         &self,
         element: &HidElement,
@@ -320,6 +333,7 @@ impl HidDevice {
         clone_value_ref(value).ok_or(HidError::OperationFailed("IOHIDDeviceGetValueWithCallback"))
     }
 
+    /// Wraps `IOHIDDeviceSetReportWithCallback`.
     pub fn set_report_with_timeout(
         &self,
         report_type: HidReportType,

@@ -4,12 +4,19 @@ use core::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
+/// Represents errors returned by `IOHIDManager*`, `IOHIDDevice*`, and related wrappers.
 pub enum HidError {
+    /// `IOHIDManagerCreate` returned a null manager.
     ManagerCreateFailed,
+    /// `IOHIDManagerOpen` failed with the enclosed `IOReturn`.
     ManagerOpenFailed(i32),
+    /// `IOHIDDeviceOpen` failed with the enclosed `IOReturn`.
     DeviceOpenFailed(i32),
+    /// A raw `IOHID*` call failed with the named operation and `IOReturn`.
     IoReturn(&'static str, i32),
+    /// A non-`IOReturn` wrapper operation failed.
     OperationFailed(&'static str),
+    /// A Rust-side argument could not be converted for the underlying framework call.
     InvalidArgument(String),
 }
 

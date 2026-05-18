@@ -8,17 +8,25 @@ pub use crate::ffi_impl::{
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u32)]
+/// Enumerates service plug-in UUIDs mirrored from `IOHIDDevicePlugIn.h`.
 pub enum ServicePlugInUuid {
+    /// Mirrors the device-factory UUID from `IOHIDDevicePlugIn.h`.
     DeviceFactory = 0,
+    /// Mirrors the device-type UUID from `IOHIDDevicePlugIn.h`.
     DeviceType = 1,
+    /// Mirrors the device-interface UUID from `IOHIDDevicePlugIn.h`.
     DeviceInterface = 2,
+    /// Mirrors the v2 device-interface UUID from `IOHIDDevicePlugIn.h`.
     DeviceInterfaceV2 = 3,
+    /// Mirrors the queue-interface UUID from `IOHIDDevicePlugIn.h`.
     QueueInterface = 4,
+    /// Mirrors the transaction-interface UUID from `IOHIDDevicePlugIn.h`.
     TransactionInterface = 5,
 }
 
 impl ServicePlugInUuid {
     #[must_use]
+    /// Returns the UUID bytes mirrored from `IOHIDDevicePlugIn.h`.
     pub const fn bytes(self) -> [u8; 16] {
         match self {
             Self::DeviceFactory => [
@@ -49,6 +57,7 @@ impl ServicePlugInUuid {
     }
 
     #[must_use]
+    /// Fetches the UUID bytes from the Swift bridge mirror.
     pub fn bridge_bytes(self) -> Option<[u8; 16]> {
         let mut bytes = [0_u8; 16];
         let ok = unsafe {
@@ -58,6 +67,7 @@ impl ServicePlugInUuid {
     }
 
     #[must_use]
+    /// Formats the service plug-in UUID in hyphenated form.
     pub fn hyphenated(self) -> String {
         let bytes = self.bytes();
         format!(
@@ -82,6 +92,7 @@ impl ServicePlugInUuid {
     }
 }
 
+/// Collects the service plug-in UUIDs mirrored from `IOHIDDevicePlugIn.h`.
 pub const ALL_SERVICE_PLUGIN_UUIDS: &[ServicePlugInUuid] = &[
     ServicePlugInUuid::DeviceFactory,
     ServicePlugInUuid::DeviceType,

@@ -1,3 +1,4 @@
+/// Collects string constants mirrored from `IOHIDKeys.h`.
 pub const ALL_STRING_KEYS: &[KeyDefinition] = &[
     KeyDefinition { symbol: "kFnFunctionUsageMapKey", value: "FnFunctionUsageMap" },
     KeyDefinition { symbol: "kFnKeyboardUsageMapKey", value: "FnKeyboardUsageMap" },
@@ -132,6 +133,7 @@ pub const ALL_STRING_KEYS: &[KeyDefinition] = &[
     KeyDefinition { symbol: "kNumLockKeyboardUsageMapKey", value: "NumLockKeyboardUsageMap" },
 ];
 
+/// Collects numeric constants mirrored from `IOHIDKeys.h`.
 pub const ALL_NUMERIC_CONSTANTS: &[NumericDefinition] = &[
     NumericDefinition { symbol: "kIOHIDAccelerationAlgorithmTypeDefault", value: 2 },
     NumericDefinition { symbol: "kIOHIDAccelerationAlgorithmTypeParametric", value: 1 },

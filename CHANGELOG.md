@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.2] - 2026-05-18
+
+### Changed
+
+- Added one-line rustdoc coverage across the safe `src/` surface, mirroring the corresponding `IOHID*`, `kIOHID*`, and HID usage-table counterparts throughout the manager, device, element, value, queue, transaction, key, usage, and event-system APIs.
+
 ## [0.10.1] - 2026-05-18
 
 ### Changed

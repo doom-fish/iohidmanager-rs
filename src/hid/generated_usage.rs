@@ -1,3 +1,4 @@
+/// Collects usage-page and usage constants mirrored from `IOHIDUsageTables.h`.
 pub const ALL_USAGE_CONSTANTS: &[UsageConstant] = &[
     UsageConstant { symbol: "kHIDPage_AlphanumericDisplay", value: 20 },
     UsageConstant { symbol: "kHIDPage_Arcade", value: 145 },
