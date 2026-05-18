@@ -68,7 +68,7 @@ impl Drop for HidTransaction {
 impl HidTransaction {
     #[must_use]
     pub fn type_id() -> ffi::CFTypeID {
-        unsafe { bridge::iohidmanager_swift_transaction_type_id() as ffi::CFTypeID }
+        unsafe { bridge::iohidmanager_swift_transaction_type_id() }
     }
 
     pub fn new(device: &HidDevice, direction: HidTransactionDirection) -> Result<Self, HidError> {

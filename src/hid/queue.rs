@@ -91,7 +91,7 @@ impl Drop for QueueValueAvailableSubscription {
 impl HidQueue {
     #[must_use]
     pub fn type_id() -> ffi::CFTypeID {
-        unsafe { bridge::iohidmanager_swift_queue_type_id() as ffi::CFTypeID }
+        unsafe { bridge::iohidmanager_swift_queue_type_id() }
     }
 
     pub fn new(device: &HidDevice, depth: usize) -> Result<Self, HidError> {

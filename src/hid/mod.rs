@@ -970,8 +970,7 @@ impl HidDevice {
                 "max_report_length must be greater than zero".to_owned(),
             ));
         }
-        let report_id = ffi::CFIndex::try_from(report_id)
-            .map_err(|_| HidError::InvalidArgument("report_id does not fit CFIndex".to_owned()))?;
+        let report_id = ffi::CFIndex::from(report_id);
         let mut buffer = vec![0_u8; max_report_length];
         let mut report_length = ffi::CFIndex::try_from(max_report_length).map_err(|_| {
             HidError::InvalidArgument("max_report_length does not fit CFIndex".to_owned())
@@ -998,8 +997,7 @@ impl HidDevice {
         report_id: u32,
         report: &[u8],
     ) -> Result<(), HidError> {
-        let report_id = ffi::CFIndex::try_from(report_id)
-            .map_err(|_| HidError::InvalidArgument("report_id does not fit CFIndex".to_owned()))?;
+        let report_id = ffi::CFIndex::from(report_id);
         let report_length = ffi::CFIndex::try_from(report.len()).map_err(|_| {
             HidError::InvalidArgument("report length does not fit CFIndex".to_owned())
         })?;

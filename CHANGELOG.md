@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0] - 2026-05-18
+
+### Changed
+
+- **Breaking — shared Core Foundation raw types**: the raw `ffi` module now re-exports `CFIndex`, `CFTypeID`, `CFTimeInterval`, and `CFUUIDBytes` from `apple_cf::raw` instead of maintaining local duplicate definitions, so downstream users see the shared `apple-cf` Core Foundation ABI surface for all four types.
+- Widened the `apple-cf` dependency requirement to `>=0.9, <0.10` for the shared raw Core Foundation type surface.
+
 ## [0.8.0] - 2026-05-18
 
 ### Changed

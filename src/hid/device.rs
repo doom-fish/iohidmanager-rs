@@ -334,8 +334,7 @@ impl HidDevice {
         report: &[u8],
         timeout_ms: f64,
     ) -> Result<(), HidError> {
-        let report_id = ffi::CFIndex::try_from(report_id)
-            .map_err(|_| HidError::InvalidArgument("report_id does not fit CFIndex".to_owned()))?;
+        let report_id = ffi::CFIndex::from(report_id);
         let report_length = ffi::CFIndex::try_from(report.len()).map_err(|_| {
             HidError::InvalidArgument("report length does not fit CFIndex".to_owned())
         })?;
