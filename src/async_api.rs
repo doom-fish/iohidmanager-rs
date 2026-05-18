@@ -180,7 +180,7 @@ impl ManagerInputValueStream {
         let (stream, sender) = BoundedAsyncStream::new(capacity);
         let sender_ptr = Box::into_raw(Box::new(sender)) as usize;
         let manager_raw = manager.as_ptr() as usize;
-        unsafe { ffi::CFRetain((manager_raw as ffi::IOHIDManagerRef).cast_const()) };
+        unsafe { ffi::CFRetain(manager_raw as ffi::IOHIDManagerRef) };
 
         let (tx, rx) = mpsc::channel::<SendableRunLoop>();
         let thread = thread::spawn(move || {
@@ -203,17 +203,13 @@ impl ManagerInputValueStream {
             unsafe { ffi::CFRunLoopRun() };
             // Cleanup: deregister, unschedule, release, drop sender.
             unsafe {
-                ffi::IOHIDManagerRegisterInputValueCallback(
-                    manager_raw,
-                    None,
-                    ptr::null_mut(),
-                );
+                ffi::IOHIDManagerRegisterInputValueCallback(manager_raw, None, ptr::null_mut());
                 ffi::IOHIDManagerUnscheduleFromRunLoop(
                     manager_raw,
                     run_loop,
                     ffi::kCFRunLoopDefaultMode,
                 );
-                ffi::CFRelease(manager_raw.cast_const());
+                ffi::CFRelease(manager_raw);
                 drop(Box::from_raw(sender_ptr));
             }
         });
@@ -297,7 +293,7 @@ impl ManagerDeviceMatchingStream {
         let (stream, sender) = BoundedAsyncStream::new(capacity);
         let sender_ptr = Box::into_raw(Box::new(sender)) as usize;
         let manager_raw = manager.as_ptr() as usize;
-        unsafe { ffi::CFRetain((manager_raw as ffi::IOHIDManagerRef).cast_const()) };
+        unsafe { ffi::CFRetain(manager_raw as ffi::IOHIDManagerRef) };
 
         let (tx, rx) = mpsc::channel::<SendableRunLoop>();
         let thread = thread::spawn(move || {
@@ -319,17 +315,13 @@ impl ManagerDeviceMatchingStream {
             tx.send(SendableRunLoop(run_loop)).ok();
             unsafe { ffi::CFRunLoopRun() };
             unsafe {
-                ffi::IOHIDManagerRegisterDeviceMatchingCallback(
-                    manager_raw,
-                    None,
-                    ptr::null_mut(),
-                );
+                ffi::IOHIDManagerRegisterDeviceMatchingCallback(manager_raw, None, ptr::null_mut());
                 ffi::IOHIDManagerUnscheduleFromRunLoop(
                     manager_raw,
                     run_loop,
                     ffi::kCFRunLoopDefaultMode,
                 );
-                ffi::CFRelease(manager_raw.cast_const());
+                ffi::CFRelease(manager_raw);
                 drop(Box::from_raw(sender_ptr));
             }
         });
@@ -412,7 +404,7 @@ impl ManagerDeviceRemovalStream {
         let (stream, sender) = BoundedAsyncStream::new(capacity);
         let sender_ptr = Box::into_raw(Box::new(sender)) as usize;
         let manager_raw = manager.as_ptr() as usize;
-        unsafe { ffi::CFRetain((manager_raw as ffi::IOHIDManagerRef).cast_const()) };
+        unsafe { ffi::CFRetain(manager_raw as ffi::IOHIDManagerRef) };
 
         let (tx, rx) = mpsc::channel::<SendableRunLoop>();
         let thread = thread::spawn(move || {
@@ -434,17 +426,13 @@ impl ManagerDeviceRemovalStream {
             tx.send(SendableRunLoop(run_loop)).ok();
             unsafe { ffi::CFRunLoopRun() };
             unsafe {
-                ffi::IOHIDManagerRegisterDeviceRemovalCallback(
-                    manager_raw,
-                    None,
-                    ptr::null_mut(),
-                );
+                ffi::IOHIDManagerRegisterDeviceRemovalCallback(manager_raw, None, ptr::null_mut());
                 ffi::IOHIDManagerUnscheduleFromRunLoop(
                     manager_raw,
                     run_loop,
                     ffi::kCFRunLoopDefaultMode,
                 );
-                ffi::CFRelease(manager_raw.cast_const());
+                ffi::CFRelease(manager_raw);
                 drop(Box::from_raw(sender_ptr));
             }
         });
@@ -492,10 +480,7 @@ unsafe extern "C" fn mgr_input_report_cb(
     report: *mut u8,
     report_length: ffi::CFIndex,
 ) {
-    if context.is_null()
-        || sender.is_null()
-        || report.is_null()
-        || result != ffi::kIOReturnSuccess
+    if context.is_null() || sender.is_null() || report.is_null() || result != ffi::kIOReturnSuccess
     {
         return;
     }
@@ -544,7 +529,7 @@ impl ManagerInputReportStream {
         let (stream, sender) = BoundedAsyncStream::new(capacity);
         let sender_ptr = Box::into_raw(Box::new(sender)) as usize;
         let manager_raw = manager.as_ptr() as usize;
-        unsafe { ffi::CFRetain((manager_raw as ffi::IOHIDManagerRef).cast_const()) };
+        unsafe { ffi::CFRetain(manager_raw as ffi::IOHIDManagerRef) };
 
         let (tx, rx) = mpsc::channel::<SendableRunLoop>();
         let thread = thread::spawn(move || {
@@ -566,17 +551,13 @@ impl ManagerInputReportStream {
             tx.send(SendableRunLoop(run_loop)).ok();
             unsafe { ffi::CFRunLoopRun() };
             unsafe {
-                ffi::IOHIDManagerRegisterInputReportCallback(
-                    manager_raw,
-                    None,
-                    ptr::null_mut(),
-                );
+                ffi::IOHIDManagerRegisterInputReportCallback(manager_raw, None, ptr::null_mut());
                 ffi::IOHIDManagerUnscheduleFromRunLoop(
                     manager_raw,
                     run_loop,
                     ffi::kCFRunLoopDefaultMode,
                 );
-                ffi::CFRelease(manager_raw.cast_const());
+                ffi::CFRelease(manager_raw);
                 drop(Box::from_raw(sender_ptr));
             }
         });
@@ -652,7 +633,7 @@ impl DeviceRemovalStream {
         let (stream, sender) = BoundedAsyncStream::new(capacity);
         let sender_ptr = Box::into_raw(Box::new(sender)) as usize;
         let device_raw = device.as_ptr() as usize;
-        unsafe { ffi::CFRetain((device_raw as ffi::IOHIDDeviceRef).cast_const()) };
+        unsafe { ffi::CFRetain(device_raw as ffi::IOHIDDeviceRef) };
 
         let (tx, rx) = mpsc::channel::<SendableRunLoop>();
         let thread = thread::spawn(move || {
@@ -692,7 +673,7 @@ impl DeviceRemovalStream {
                     );
                     let _ = ffi::IOHIDDeviceClose(device_raw, ffi::kIOHIDOptionsTypeNone);
                 }
-                ffi::CFRelease(device_raw.cast_const());
+                ffi::CFRelease(device_raw);
                 drop(Box::from_raw(sender_ptr));
             }
         });
@@ -768,7 +749,7 @@ impl DeviceInputValueStream {
         let (stream, sender) = BoundedAsyncStream::new(capacity);
         let sender_ptr = Box::into_raw(Box::new(sender)) as usize;
         let device_raw = device.as_ptr() as usize;
-        unsafe { ffi::CFRetain((device_raw as ffi::IOHIDDeviceRef).cast_const()) };
+        unsafe { ffi::CFRetain(device_raw as ffi::IOHIDDeviceRef) };
 
         let (tx, rx) = mpsc::channel::<SendableRunLoop>();
         let thread = thread::spawn(move || {
@@ -807,7 +788,7 @@ impl DeviceInputValueStream {
                     );
                     let _ = ffi::IOHIDDeviceClose(device_raw, ffi::kIOHIDOptionsTypeNone);
                 }
-                ffi::CFRelease(device_raw.cast_const());
+                ffi::CFRelease(device_raw);
                 drop(Box::from_raw(sender_ptr));
             }
         });
@@ -892,11 +873,7 @@ impl QueueValueStream {
             let sender_ptr = sender_ptr as *mut AsyncStreamSender<()>;
             let run_loop = unsafe { ffi::CFRunLoopGetCurrent() };
             unsafe {
-                ffi::IOHIDQueueScheduleWithRunLoop(
-                    queue_raw,
-                    run_loop,
-                    ffi::kCFRunLoopDefaultMode,
-                );
+                ffi::IOHIDQueueScheduleWithRunLoop(queue_raw, run_loop, ffi::kCFRunLoopDefaultMode);
                 ffi::IOHIDQueueRegisterValueAvailableCallback(
                     queue_raw,
                     Some(queue_value_available_cb),

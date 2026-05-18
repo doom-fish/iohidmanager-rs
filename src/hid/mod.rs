@@ -429,9 +429,9 @@ impl Drop for HidManager {
         if !self.raw.is_null() {
             unsafe {
                 let _ = ffi::IOHIDManagerClose(self.raw, ffi::kIOHIDOptionsTypeNone);
-                ffi::CFRelease(self.raw.cast_const());
+                ffi::CFRelease(self.raw);
             }
-            self.raw = ptr::null_mut();
+            self.raw = ptr::null();
         }
     }
 }
@@ -600,7 +600,7 @@ impl HidManager {
         let devices = buffer
             .into_iter()
             .filter(|device| !device.is_null())
-            .map(|device| read_device_info(device.cast_mut()))
+            .map(|device| read_device_info(device.cast()))
             .collect();
         unsafe { ffi::CFRelease(set.cast()) };
         devices
@@ -621,9 +621,7 @@ impl HidManager {
             .filter(|device| !device.is_null())
             .map(|device| {
                 unsafe { ffi::CFRetain(device) };
-                HidDevice {
-                    raw: device.cast_mut(),
-                }
+                HidDevice { raw: device.cast() }
             })
             .collect();
         unsafe { ffi::CFRelease(set.cast()) };
@@ -645,7 +643,7 @@ unsafe impl Sync for HidDevice {}
 
 impl Clone for HidDevice {
     fn clone(&self) -> Self {
-        unsafe { ffi::CFRetain(self.raw.cast_const()) };
+        unsafe { ffi::CFRetain(self.raw) };
         Self { raw: self.raw }
     }
 }
@@ -653,8 +651,8 @@ impl Clone for HidDevice {
 impl Drop for HidDevice {
     fn drop(&mut self) {
         if !self.raw.is_null() {
-            unsafe { ffi::CFRelease(self.raw.cast_const()) };
-            self.raw = ptr::null_mut();
+            unsafe { ffi::CFRelease(self.raw) };
+            self.raw = ptr::null();
         }
     }
 }
@@ -823,7 +821,7 @@ impl HidDevice {
                 Some(report_trampoline),
                 context_ptr.cast(),
             );
-            ffi::CFRetain(self.raw.cast_const());
+            ffi::CFRetain(self.raw);
         }
         Ok(ReportSubscription {
             device: self.raw,
@@ -868,7 +866,7 @@ impl HidDevice {
                 Some(timestamped_report_trampoline),
                 context_ptr.cast(),
             );
-            ffi::CFRetain(self.raw.cast_const());
+            ffi::CFRetain(self.raw);
         }
         Ok(TimestampedReportSubscription {
             device: self.raw,
@@ -896,7 +894,7 @@ impl HidDevice {
                 Some(value_trampoline),
                 context_ptr.cast(),
             );
-            ffi::CFRetain(self.raw.cast_const());
+            ffi::CFRetain(self.raw);
         }
         Ok(ValueSubscription {
             device: self.raw,
@@ -927,7 +925,7 @@ impl HidDevice {
     }
 
     pub fn get_value(&self, element: &HidElement) -> Result<HidValue, HidError> {
-        let mut value = ptr::null_mut();
+        let mut value = ptr::null();
         let status = unsafe { ffi::IOHIDDeviceGetValue(self.raw, element.raw, &mut value) };
         if status != ffi::kIOReturnSuccess {
             return Err(HidError::IoReturn("IOHIDDeviceGetValue", status));
@@ -940,7 +938,7 @@ impl HidDevice {
         element: &HidElement,
         options: IOHIDDeviceGetValueOptions,
     ) -> Result<HidValue, HidError> {
-        let mut value = ptr::null_mut();
+        let mut value = ptr::null();
         let status = unsafe {
             ffi::IOHIDDeviceGetValueWithOptions(self.raw, element.raw, &mut value, options)
         };
@@ -1026,7 +1024,7 @@ impl HidDevice {
     /// `CFRetain` is called so the resulting wrapper releases on drop.
     pub(crate) fn from_raw_retained(raw: ffi::IOHIDDeviceRef) -> Self {
         debug_assert!(!raw.is_null());
-        unsafe { ffi::CFRetain(raw.cast_const()) };
+        unsafe { ffi::CFRetain(raw) };
         Self { raw }
     }
 }
@@ -1188,7 +1186,7 @@ impl HidElement {
         if device.is_null() {
             None
         } else {
-            unsafe { ffi::CFRetain(device.cast_const()) };
+            unsafe { ffi::CFRetain(device) };
             Some(HidDevice { raw: device })
         }
     }
@@ -1274,7 +1272,7 @@ unsafe impl Sync for HidValue {}
 
 impl Clone for HidValue {
     fn clone(&self) -> Self {
-        unsafe { ffi::CFRetain(self.raw.cast_const()) };
+        unsafe { ffi::CFRetain(self.raw) };
         Self { raw: self.raw }
     }
 }
@@ -1294,8 +1292,8 @@ impl fmt::Debug for HidValue {
 impl Drop for HidValue {
     fn drop(&mut self) {
         if !self.raw.is_null() {
-            unsafe { ffi::CFRelease(self.raw.cast_const()) };
-            self.raw = ptr::null_mut();
+            unsafe { ffi::CFRelease(self.raw) };
+            self.raw = ptr::null();
         }
     }
 }
@@ -1506,12 +1504,12 @@ impl Drop for ReportSubscription {
                 ptr::null_mut(),
             );
             close_and_unschedule_device(self.device, self.run_loop);
-            ffi::CFRelease(self.device.cast_const());
+            ffi::CFRelease(self.device);
             let context = Box::from_raw(self.context);
             let _ = Box::from_raw(context.callback);
             let _ = Box::from_raw(self.buffer_ptr);
         }
-        self.device = ptr::null_mut();
+        self.device = ptr::null();
         self.context = ptr::null_mut();
     }
 }
@@ -1541,12 +1539,12 @@ impl Drop for TimestampedReportSubscription {
                 ptr::null_mut(),
             );
             close_and_unschedule_device(self.device, self.run_loop);
-            ffi::CFRelease(self.device.cast_const());
+            ffi::CFRelease(self.device);
             let context = Box::from_raw(self.context);
             let _ = Box::from_raw(context.callback);
             let _ = Box::from_raw(self.buffer_ptr);
         }
-        self.device = ptr::null_mut();
+        self.device = ptr::null();
         self.context = ptr::null_mut();
     }
 }
@@ -1567,11 +1565,11 @@ impl Drop for ValueSubscription {
         unsafe {
             ffi::IOHIDDeviceRegisterInputValueCallback(self.device, None, ptr::null_mut());
             close_and_unschedule_device(self.device, self.run_loop);
-            ffi::CFRelease(self.device.cast_const());
+            ffi::CFRelease(self.device);
             let context = Box::from_raw(self.context);
             let _ = Box::from_raw(context.callback);
         }
-        self.device = ptr::null_mut();
+        self.device = ptr::null();
         self.context = ptr::null_mut();
     }
 }
@@ -1727,9 +1725,7 @@ fn elements_from_array(array: ffi::CFArrayRef, release_after: bool) -> Vec<HidEl
             ffi::CFArrayGetValueAtIndex(array, ffi::CFIndex::try_from(index).unwrap_or(0))
         };
         if !raw.is_null() {
-            elements.push(HidElement {
-                raw: raw.cast_mut(),
-            });
+            elements.push(HidElement { raw: raw.cast() });
         }
     }
     if release_after {

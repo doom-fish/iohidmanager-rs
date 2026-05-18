@@ -101,7 +101,7 @@ impl HidTransaction {
         if device.is_null() {
             None
         } else {
-            unsafe { ffi::CFRetain(device.cast_const()) };
+            unsafe { ffi::CFRetain(device) };
             Some(HidDevice { raw: device })
         }
     }
@@ -150,12 +150,7 @@ impl HidTransaction {
         }
     }
 
-    pub fn set_value(
-        &self,
-        element: &HidElement,
-        value: &HidValue,
-        options: ffi::IOOptionBits,
-    ) {
+    pub fn set_value(&self, element: &HidElement, value: &HidValue, options: ffi::IOOptionBits) {
         unsafe { ffi::IOHIDTransactionSetValue(self.raw, element.raw, value.raw, options) };
     }
 

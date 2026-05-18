@@ -83,14 +83,7 @@ fn read_element_value_dictionary(dict: ffi::CFDictionaryRef) -> Vec<(HidElement,
         .zip(values)
         .filter_map(|(key, value)| {
             (!key.is_null() && !value.is_null()).then(|| {
-                clone_value_ref(value.cast_mut()).map(|value| {
-                    (
-                        HidElement {
-                            raw: key.cast_mut(),
-                        },
-                        value,
-                    )
-                })
+                clone_value_ref(value.cast()).map(|value| (HidElement { raw: key.cast() }, value))
             })
         })
         .flatten()
@@ -113,11 +106,11 @@ impl Drop for DeviceRemovalSubscription {
         unsafe {
             ffi::IOHIDDeviceRegisterRemovalCallback(self.device, None, ptr::null_mut());
             close_and_unschedule_device(self.device, self.run_loop);
-            ffi::CFRelease(self.device.cast_const());
+            ffi::CFRelease(self.device);
             let context = Box::from_raw(self.context);
             let _ = Box::from_raw(context.callback);
         }
-        self.device = ptr::null_mut();
+        self.device = ptr::null();
         self.context = ptr::null_mut();
     }
 }
@@ -175,7 +168,7 @@ impl HidDevice {
                 Some(device_removal_trampoline),
                 context_ptr.cast(),
             );
-            ffi::CFRetain(self.raw.cast_const());
+            ffi::CFRetain(self.raw);
         }
         Ok(DeviceRemovalSubscription {
             device: self.raw,
@@ -307,7 +300,7 @@ impl HidDevice {
         element: &HidElement,
         timeout_ms: f64,
     ) -> Result<HidValue, HidError> {
-        let mut value = ptr::null_mut();
+        let mut value = ptr::null();
         let status = unsafe {
             ffi::IOHIDDeviceGetValueWithCallback(
                 self.raw,

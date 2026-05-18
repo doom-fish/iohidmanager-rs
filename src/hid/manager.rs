@@ -43,7 +43,7 @@ unsafe extern "C" fn manager_device_trampoline(
     if context.is_null() || device.is_null() || result != ffi::kIOReturnSuccess {
         return;
     }
-    unsafe { ffi::CFRetain(device.cast_const()) };
+    unsafe { ffi::CFRetain(device) };
     // SAFETY: context is non-null (checked above) and points to a
     // `ManagerDeviceContext` whose `callback` field was `Box::into_raw`'d
     // when the subscription was created.
@@ -153,7 +153,7 @@ fn retained_device_from_sender(sender: *mut c_void) -> Option<HidDevice> {
     if device.is_null() {
         return None;
     }
-    unsafe { ffi::CFRetain(device.cast_const()) };
+    unsafe { ffi::CFRetain(device) };
     Some(HidDevice { raw: device.cast() })
 }
 
@@ -201,11 +201,11 @@ impl Drop for ManagerDeviceSubscription {
                 }
             }
             unschedule_manager(self.manager, self.run_loop);
-            ffi::CFRelease(self.manager.cast_const());
+            ffi::CFRelease(self.manager);
             let context = Box::from_raw(self.context);
             let _ = Box::from_raw(context.callback);
         }
-        self.manager = ptr::null_mut();
+        self.manager = ptr::null();
         self.context = ptr::null_mut();
     }
 }
@@ -242,11 +242,11 @@ impl Drop for ManagerReportSubscription {
                 }
             }
             unschedule_manager(self.manager, self.run_loop);
-            ffi::CFRelease(self.manager.cast_const());
+            ffi::CFRelease(self.manager);
             let context = Box::from_raw(self.context);
             let _ = Box::from_raw(context.callback);
         }
-        self.manager = ptr::null_mut();
+        self.manager = ptr::null();
         self.context = ptr::null_mut();
     }
 }
@@ -267,11 +267,11 @@ impl Drop for ManagerValueSubscription {
         unsafe {
             ffi::IOHIDManagerRegisterInputValueCallback(self.manager, None, ptr::null_mut());
             unschedule_manager(self.manager, self.run_loop);
-            ffi::CFRelease(self.manager.cast_const());
+            ffi::CFRelease(self.manager);
             let context = Box::from_raw(self.context);
             let _ = Box::from_raw(context.callback);
         }
-        self.manager = ptr::null_mut();
+        self.manager = ptr::null();
         self.context = ptr::null_mut();
     }
 }
@@ -322,7 +322,7 @@ impl HidManager {
         }
         let status = unsafe { ffi::IOHIDManagerOpen(raw, bits) };
         if status != ffi::kIOReturnSuccess {
-            unsafe { ffi::CFRelease(raw.cast_const()) };
+            unsafe { ffi::CFRelease(raw) };
             return Err(HidError::ManagerOpenFailed(status));
         }
         Ok(Self { raw })
@@ -399,7 +399,7 @@ impl HidManager {
                 Some(manager_device_trampoline),
                 context_ptr.cast(),
             );
-            ffi::CFRetain(self.raw.cast_const());
+            ffi::CFRetain(self.raw);
         }
         Ok(ManagerDeviceSubscription {
             manager: self.raw,
@@ -425,7 +425,7 @@ impl HidManager {
                 Some(manager_device_trampoline),
                 context_ptr.cast(),
             );
-            ffi::CFRetain(self.raw.cast_const());
+            ffi::CFRetain(self.raw);
         }
         Ok(ManagerDeviceSubscription {
             manager: self.raw,
@@ -452,7 +452,7 @@ impl HidManager {
                 Some(manager_report_trampoline),
                 context_ptr.cast(),
             );
-            ffi::CFRetain(self.raw.cast_const());
+            ffi::CFRetain(self.raw);
         }
         Ok(ManagerReportSubscription {
             manager: self.raw,
@@ -482,7 +482,7 @@ impl HidManager {
                 Some(manager_timestamped_report_trampoline),
                 context_ptr.cast(),
             );
-            ffi::CFRetain(self.raw.cast_const());
+            ffi::CFRetain(self.raw);
         }
         Ok(ManagerReportSubscription {
             manager: self.raw,
@@ -509,7 +509,7 @@ impl HidManager {
                 Some(manager_value_trampoline),
                 context_ptr.cast(),
             );
-            ffi::CFRetain(self.raw.cast_const());
+            ffi::CFRetain(self.raw);
         }
         Ok(ManagerValueSubscription {
             manager: self.raw,

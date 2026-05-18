@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0] - 2026-05-18
+
+### Changed
+
+- **Breaking — shared IOKit HID raw types**: the raw `ffi` module now re-exports `IOHIDManagerRef`, `IOHIDDeviceRef`, `IOHIDElementRef`, `IOHIDValueRef`, `IOReturn`, `IOOptionBits`, and `IOHIDReportType` from `iokit::ffi` instead of maintaining local duplicate definitions, so downstream users see the shared `iokit` ABI surface for those seven IOHID types.
+- Added an explicit `iokit` path dependency with version requirement `>=0.4, <0.6` for the shared raw IOHID type surface used by `ffi`.
+
 ## [0.9.0] - 2026-05-18
 
 ### Changed

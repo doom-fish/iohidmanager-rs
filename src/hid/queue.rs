@@ -121,7 +121,7 @@ impl HidQueue {
         if device.is_null() {
             None
         } else {
-            unsafe { ffi::CFRetain(device.cast_const()) };
+            unsafe { ffi::CFRetain(device) };
             Some(HidDevice { raw: device })
         }
     }

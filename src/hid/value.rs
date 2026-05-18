@@ -26,16 +26,18 @@ impl HidValue {
         })?;
         let raw = unsafe {
             bridge::iohidmanager_swift_value_create_with_bytes_no_copy(
-                element.raw.cast(),
+                element.raw.cast_mut(),
                 timestamp,
-                if bytes.is_empty() { core::ptr::null() } else { bytes.as_ptr() },
+                if bytes.is_empty() {
+                    core::ptr::null()
+                } else {
+                    bytes.as_ptr()
+                },
                 length,
             )
         };
         if raw.is_null() {
-            Err(HidError::OperationFailed(
-                "IOHIDValueCreateWithBytesNoCopy",
-            ))
+            Err(HidError::OperationFailed("IOHIDValueCreateWithBytesNoCopy"))
         } else {
             Ok(Self { raw: raw.cast() })
         }

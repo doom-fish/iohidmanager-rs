@@ -22,15 +22,12 @@ pub type dispatch_block_t = *mut c_void;
 pub type io_service_t = u32;
 pub type Boolean = u8;
 
-pub type IOHIDManagerRef = *mut c_void;
-pub type IOHIDDeviceRef = *mut c_void;
-pub type IOHIDElementRef = *mut c_void;
-pub type IOHIDValueRef = *mut c_void;
+pub use iokit::ffi::{
+    IOHIDDeviceRef, IOHIDElementRef, IOHIDManagerRef, IOHIDReportType, IOHIDValueRef, IOOptionBits,
+    IOReturn,
+};
 pub type IOHIDQueueRef = *mut c_void;
 pub type IOHIDTransactionRef = *mut c_void;
-pub type IOReturn = i32;
-pub type IOOptionBits = u32;
-pub type IOHIDReportType = u32;
 pub type IOHIDValueScaleType = u32;
 pub type IOHIDTransactionDirectionType = u32;
 pub type IOHIDDeviceGetValueOptions = u32;
