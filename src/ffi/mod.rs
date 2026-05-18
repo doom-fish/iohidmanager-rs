@@ -11,17 +11,10 @@
 
 use core::ffi::{c_char, c_void};
 
-pub type CFTypeRef = *const c_void;
-pub type CFAllocatorRef = *const c_void;
-pub type CFStringRef = *const c_void;
-pub type CFNumberRef = *const c_void;
-pub type CFDataRef = *const c_void;
-pub type CFArrayRef = *const c_void;
-pub type CFMutableArrayRef = *mut c_void;
-pub type CFSetRef = *const c_void;
-pub type CFDictionaryRef = *const c_void;
-pub type CFMutableDictionaryRef = *mut c_void;
-pub type CFRunLoopRef = *mut c_void;
+pub use apple_cf::raw::{
+    CFAllocatorRef, CFArrayRef, CFDataRef, CFDictionaryRef, CFMutableArrayRef,
+    CFMutableDictionaryRef, CFNumberRef, CFRunLoopRef, CFSetRef, CFStringRef, CFTypeRef,
+};
 pub type CFIndex = isize;
 pub type CFTimeInterval = f64;
 pub type CFTypeID = usize;

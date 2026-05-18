@@ -498,7 +498,7 @@ impl HidManager {
         let user = match make_cfstring(user_name) {
             Ok(user) => user,
             Err(err) => {
-                unsafe { ffi::CFRelease(app) };
+                unsafe { ffi::CFRelease(app.cast()) };
                 return Err(err);
             }
         };
@@ -506,17 +506,17 @@ impl HidManager {
             Ok(host) => host,
             Err(err) => {
                 unsafe {
-                    ffi::CFRelease(app);
-                    ffi::CFRelease(user);
+                    ffi::CFRelease(app.cast());
+                    ffi::CFRelease(user.cast());
                 }
                 return Err(err);
             }
         };
         unsafe {
             ffi::IOHIDManagerSaveToPropertyDomain(self.raw, app, user, host, options);
-            ffi::CFRelease(app);
-            ffi::CFRelease(user);
-            ffi::CFRelease(host);
+            ffi::CFRelease(app.cast());
+            ffi::CFRelease(user.cast());
+            ffi::CFRelease(host.cast());
         }
         Ok(())
     }
@@ -566,7 +566,7 @@ impl HidManager {
         let ok = with_cfstring(key, |key_cf| unsafe {
             ffi::IOHIDManagerSetProperty(self.raw, key_cf, value_cf.cast())
         })?;
-        unsafe { ffi::CFRelease(value_cf) };
+        unsafe { ffi::CFRelease(value_cf.cast()) };
         if ok {
             Ok(())
         } else {
@@ -732,7 +732,7 @@ impl HidDevice {
         let ok = with_cfstring(key, |key_cf| unsafe {
             ffi::IOHIDDeviceSetProperty(self.raw, key_cf, value_cf.cast())
         })?;
-        unsafe { ffi::CFRelease(value_cf) };
+        unsafe { ffi::CFRelease(value_cf.cast()) };
         if ok {
             Ok(())
         } else {
@@ -1240,7 +1240,7 @@ impl HidElement {
         let ok = with_cfstring(key, |key_cf| unsafe {
             ffi::IOHIDElementSetProperty(self.raw, key_cf, value_cf.cast())
         })?;
-        unsafe { ffi::CFRelease(value_cf) };
+        unsafe { ffi::CFRelease(value_cf.cast()) };
         if ok {
             Ok(())
         } else {
@@ -1658,7 +1658,7 @@ fn build_cf_dictionary(entries: &[(String, MatchValue)]) -> Result<ffi::CFDictio
                 Ok(value_cf) => value_cf.cast(),
                 Err(err) => {
                     unsafe {
-                        ffi::CFRelease(key_cf);
+                        ffi::CFRelease(key_cf.cast());
                         ffi::CFRelease(dict.cast());
                     }
                     return Err(err);
@@ -1668,7 +1668,7 @@ fn build_cf_dictionary(entries: &[(String, MatchValue)]) -> Result<ffi::CFDictio
                 Ok(value_cf) => value_cf.cast(),
                 Err(err) => {
                     unsafe {
-                        ffi::CFRelease(key_cf);
+                        ffi::CFRelease(key_cf.cast());
                         ffi::CFRelease(dict.cast());
                     }
                     return Err(err);
@@ -1677,7 +1677,7 @@ fn build_cf_dictionary(entries: &[(String, MatchValue)]) -> Result<ffi::CFDictio
         };
         unsafe {
             ffi::CFDictionarySetValue(dict, key_cf.cast(), value_cf.cast());
-            ffi::CFRelease(key_cf);
+            ffi::CFRelease(key_cf.cast());
             ffi::CFRelease(value_cf);
         }
     }
@@ -1839,7 +1839,7 @@ where
 {
     let value_cf = make_cfstring(value)?;
     let result = f(value_cf);
-    unsafe { ffi::CFRelease(value_cf) };
+    unsafe { ffi::CFRelease(value_cf.cast()) };
     Ok(result)
 }
 

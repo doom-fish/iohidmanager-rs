@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0] - 2026-05-18
+
+### Changed
+
+- **Breaking — Core Foundation raw typedefs**: the raw `ffi` module now re-exports 11 `CF*Ref` aliases from `apple_cf::raw` instead of maintaining local duplicate `*const c_void` / `*mut c_void` definitions, so downstream users see the shared opaque Core Foundation pointer types from `apple-cf`.
+- Added an explicit `apple-cf` dependency for the shared Core Foundation raw typedef surface used by `ffi`.
+
 ## [0.7.1] - 2026-05-17
 
 ### Fixed

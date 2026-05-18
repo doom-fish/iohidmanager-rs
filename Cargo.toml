@@ -1,6 +1,6 @@
 [package]
 name = "iohidmanager"
-version = "0.7.1"
+version = "0.8.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/iohidmanager-rs"
@@ -43,7 +43,8 @@ raw-ffi = []
 async = []
 
 [dependencies]
-doom-fish-utils = { path = "../doom-fish-utils", version = "0.1" }
+apple-cf = { path = "../apple-cf-rs", version = ">=0.8, <0.9", default-features = false }
+doom-fish-utils = { path = "../doom-fish-utils", version = ">=0.1, <0.3" }
 
 [dev-dependencies]
 regex-lite = "0.1"
