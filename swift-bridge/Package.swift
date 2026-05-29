@@ -15,7 +15,6 @@ let package = Package(
     targets: [
         .target(
             name: "IOHIDManagerBridge",
-            path: "Sources/IOHIDManagerBridge",
-            publicHeadersPath: "include")
+            path: "Sources/IOHIDManagerBridge")
     ]
 )

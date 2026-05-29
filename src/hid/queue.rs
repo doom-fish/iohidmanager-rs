@@ -4,6 +4,7 @@ use core::ptr;
 #[allow(clippy::wildcard_imports)]
 use super::*;
 use crate::{bridge, ffi_impl as ffi};
+use doom_fish_utils::panic_safe::catch_user_panic;
 
 #[allow(clippy::type_complexity)]
 struct QueueValueContext {
@@ -19,7 +20,9 @@ unsafe extern "C" fn queue_value_trampoline(
         return;
     }
     let callback = unsafe { &*(*context.cast::<QueueValueContext>()).callback };
-    callback();
+    catch_user_panic("queue_value_trampoline", || {
+        callback();
+    });
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

@@ -4,6 +4,7 @@ use core::ptr;
 #[allow(clippy::wildcard_imports)]
 use super::*;
 use crate::ffi_impl as ffi;
+use doom_fish_utils::panic_safe::catch_user_panic;
 
 #[allow(clippy::type_complexity)]
 struct DeviceRemovalContext {
@@ -19,7 +20,9 @@ unsafe extern "C" fn device_removal_trampoline(
         return;
     }
     let callback = unsafe { &*(*context.cast::<DeviceRemovalContext>()).callback };
-    callback();
+    catch_user_panic("device_removal_trampoline", || {
+        callback();
+    });
 }
 
 fn build_element_array(elements: &[HidElement]) -> Result<ffi::CFArrayRef, HidError> {
