@@ -7,6 +7,7 @@ use std::fmt;
 
 use crate::error::HidError;
 use crate::ffi_impl as ffi;
+use doom_fish_utils::panic_safe::catch_user_panic;
 
 /// Device helpers wrapping `IOHIDDevice*` APIs.
 pub mod device;
@@ -1644,7 +1645,9 @@ unsafe extern "C" fn report_trampoline(
         .min(context.buffer_len);
     let bytes = unsafe { core::slice::from_raw_parts(report.cast_const(), length) };
     let callback = unsafe { &*context.callback };
-    callback(bytes);
+    catch_user_panic("report_trampoline", || {
+        callback(bytes);
+    });
 }
 
 unsafe extern "C" fn timestamped_report_trampoline(
@@ -1666,11 +1669,13 @@ unsafe extern "C" fn timestamped_report_trampoline(
         .min(context.buffer_len);
     let bytes = unsafe { core::slice::from_raw_parts(report.cast_const(), length) }.to_vec();
     let callback = unsafe { &*context.callback };
-    callback(HidInputReport {
-        report_type: HidReportType::from_raw(report_type),
-        report_id,
-        bytes,
-        timestamp,
+    catch_user_panic("timestamped_report_trampoline", || {
+        callback(HidInputReport {
+            report_type: HidReportType::from_raw(report_type),
+            report_id,
+            bytes,
+            timestamp,
+        });
     });
 }
 
@@ -1688,7 +1693,9 @@ unsafe extern "C" fn value_trampoline(
     };
     let context = unsafe { &*context.cast::<ValueContext>() };
     let callback = unsafe { &*context.callback };
-    callback(&value);
+    catch_user_panic("value_trampoline", || {
+        callback(&value);
+    });
 }
 
 /// Owns a registration from `IOHIDDeviceRegisterInputReportCallback`.
