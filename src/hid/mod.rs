@@ -1085,7 +1085,7 @@ impl HidDevice {
     /// Wraps `IOHIDDeviceGetValue`.
     pub fn get_value(&self, element: &HidElement) -> Result<HidValue, HidError> {
         let mut value = ptr::null();
-        let status = unsafe { ffi::IOHIDDeviceGetValue(self.raw, element.raw, &mut value) };
+        let status = unsafe { ffi::IOHIDDeviceGetValue(self.raw, element.raw, &raw mut value) };
         if status != ffi::kIOReturnSuccess {
             return Err(HidError::IoReturn("IOHIDDeviceGetValue", status));
         }
@@ -1100,7 +1100,7 @@ impl HidDevice {
     ) -> Result<HidValue, HidError> {
         let mut value = ptr::null();
         let status = unsafe {
-            ffi::IOHIDDeviceGetValueWithOptions(self.raw, element.raw, &mut value, options)
+            ffi::IOHIDDeviceGetValueWithOptions(self.raw, element.raw, &raw mut value, options)
         };
         if status != ffi::kIOReturnSuccess {
             return Err(HidError::IoReturn("IOHIDDeviceGetValueWithOptions", status));
@@ -1141,7 +1141,7 @@ impl HidDevice {
                 report_type.as_raw(),
                 report_id,
                 buffer.as_mut_ptr(),
-                &mut report_length,
+                &raw mut report_length,
             )
         };
         if status != ffi::kIOReturnSuccess {

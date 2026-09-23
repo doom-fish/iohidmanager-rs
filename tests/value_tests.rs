@@ -12,5 +12,5 @@ fn value_no_copy_constructor_smoke() {
     };
     let bytes = [1_u8];
     let value = unsafe { HidValue::from_bytes_no_copy(element, 0, &bytes) }.expect("value");
-    assert!(value.timestamp() == 0);
+    assert_eq!(value.timestamp(), 0);
 }

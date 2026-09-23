@@ -236,7 +236,7 @@ impl HidDevice {
         }
         let array = build_element_array(elements)?;
         let mut multiple = ptr::null();
-        let status = unsafe { ffi::IOHIDDeviceCopyValueMultiple(self.raw, array, &mut multiple) };
+        let status = unsafe { ffi::IOHIDDeviceCopyValueMultiple(self.raw, array, &raw mut multiple) };
         unsafe { ffi::CFRelease(array.cast()) };
         if status != ffi::kIOReturnSuccess {
             return Err(HidError::IoReturn("IOHIDDeviceCopyValueMultiple", status));
@@ -263,7 +263,7 @@ impl HidDevice {
             ffi::IOHIDDeviceCopyValueMultipleWithCallback(
                 self.raw,
                 array,
-                &mut multiple,
+                &raw mut multiple,
                 timeout_ms,
                 None,
                 ptr::null_mut(),
@@ -321,7 +321,7 @@ impl HidDevice {
             ffi::IOHIDDeviceGetValueWithCallback(
                 self.raw,
                 element.raw,
-                &mut value,
+                &raw mut value,
                 timeout_ms,
                 None,
                 ptr::null_mut(),
