@@ -16,6 +16,10 @@ fn usage_constants_match_sdk_header() {
         ("kHIDUsage_GD_Keyboard", usage::USAGE_KEYBOARD),
         ("kHIDUsage_GD_Mouse", usage::USAGE_MOUSE),
     ] {
-        assert_eq!(u64::from(value), common::enum_value(&header, symbol), "{symbol}");
+        assert_eq!(
+            u64::from(value),
+            common::enum_value(&header, symbol),
+            "{symbol}"
+        );
     }
 }

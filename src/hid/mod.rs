@@ -1585,7 +1585,11 @@ impl HidValue {
     }
 
     /// Wraps `IOHIDValueCreateWithIntegerValue`.
-    pub fn from_integer(element: &HidElement, timestamp: u64, value: i64) -> Result<Self, HidError> {
+    pub fn from_integer(
+        element: &HidElement,
+        timestamp: u64,
+        value: i64,
+    ) -> Result<Self, HidError> {
         let value = ffi::CFIndex::try_from(value).map_err(|_| {
             HidError::InvalidArgument("integer value does not fit CFIndex".to_owned())
         })?;
@@ -1603,7 +1607,11 @@ impl HidValue {
     }
 
     /// Wraps `IOHIDValueCreateWithBytes`.
-    pub fn from_bytes(element: &HidElement, timestamp: u64, bytes: &[u8]) -> Result<Self, HidError> {
+    pub fn from_bytes(
+        element: &HidElement,
+        timestamp: u64,
+        bytes: &[u8],
+    ) -> Result<Self, HidError> {
         let length = ffi::CFIndex::try_from(bytes.len()).map_err(|_| {
             HidError::InvalidArgument("byte slice length does not fit CFIndex".to_owned())
         })?;

@@ -28,9 +28,7 @@ pub fn parse_integer(text: &str) -> u64 {
 }
 
 pub fn enum_value(header: &str, symbol: &str) -> u64 {
-    let pattern = format!(
-        r"\b{symbol}\s*=\s*(?:\(\s*)?(0x[0-9A-Fa-f]+|\d+)(?:\s*<<\s*(\d+))?"
-    );
+    let pattern = format!(r"\b{symbol}\s*=\s*(?:\(\s*)?(0x[0-9A-Fa-f]+|\d+)(?:\s*<<\s*(\d+))?");
     let re = regex_lite::Regex::new(&pattern).expect("regex");
     let caps = re
         .captures(header)

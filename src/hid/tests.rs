@@ -39,7 +39,10 @@ impl DeviceLessElement {
     }
 
     fn has_empty_layout(&self) -> bool {
-        unsafe { ffi::IOHIDElementGetReportSize(self.0) == 0 && ffi::IOHIDElementGetReportCount(self.0) == 0 }
+        unsafe {
+            ffi::IOHIDElementGetReportSize(self.0) == 0
+                && ffi::IOHIDElementGetReportCount(self.0) == 0
+        }
     }
 }
 
@@ -127,7 +130,10 @@ fn elements_keep_their_device_and_share_it_with_relatives() {
     element.attach(&sibling).expect("same device");
     let attached = element.attached();
     assert_eq!(attached, vec![sibling.clone()]);
-    assert_eq!(attached[0].device().map(|d| d.as_ptr()), Some(device.as_ptr()));
+    assert_eq!(
+        attached[0].device().map(|d| d.as_ptr()),
+        Some(device.as_ptr())
+    );
     element.detach(&sibling);
     assert!(element.attached().is_empty());
 }
@@ -143,8 +149,14 @@ fn attach_rejects_elements_of_another_device() {
     let orphan = DeviceLessElement::new();
     let orphan = HidElement::from_raw_retained(orphan.0, None).expect("orphan");
 
-    assert!(matches!(first.attach(&second), Err(HidError::InvalidArgument(_))));
-    assert!(matches!(first.attach(&orphan), Err(HidError::InvalidArgument(_))));
+    assert!(matches!(
+        first.attach(&second),
+        Err(HidError::InvalidArgument(_))
+    ));
+    assert!(matches!(
+        first.attach(&orphan),
+        Err(HidError::InvalidArgument(_))
+    ));
     assert!(first.attached().is_empty());
 }
 
@@ -157,9 +169,8 @@ fn owned_values_take_the_create_reference() {
     let base = element.retain_count();
     let device = stand_in_device();
 
-    let raw = unsafe {
-        ffi::IOHIDValueCreateWithIntegerValue(ffi::kCFAllocatorDefault, element.0, 7, 0)
-    };
+    let raw =
+        unsafe { ffi::IOHIDValueCreateWithIntegerValue(ffi::kCFAllocatorDefault, element.0, 7, 0) };
     assert!(!raw.is_null());
     assert_eq!(element.retain_count(), base + 1);
 
@@ -169,7 +180,10 @@ fn owned_values_take_the_create_reference() {
 
     let value_element = value.element();
     assert_eq!(value_element.as_ptr(), element.0);
-    assert_eq!(value_element.device().map(|d| d.as_ptr()), Some(device.as_ptr()));
+    assert_eq!(
+        value_element.device().map(|d| d.as_ptr()),
+        Some(device.as_ptr())
+    );
     drop(value_element);
 
     let copy = value.clone();
