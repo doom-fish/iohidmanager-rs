@@ -71,8 +71,10 @@ fn build_element_value_dictionary(
     Ok(dict.cast())
 }
 
-#[allow(clippy::filter_map_bool_then)]
-fn read_element_value_dictionary(dict: ffi::CFDictionaryRef) -> Vec<(HidElement, HidValue)> {
+fn read_element_value_dictionary(
+    dict: ffi::CFDictionaryRef,
+    device: &HidDevice,
+) -> Vec<(HidElement, HidValue)> {
     if dict.is_null() {
         return Vec::new();
     }
@@ -85,11 +87,10 @@ fn read_element_value_dictionary(dict: ffi::CFDictionaryRef) -> Vec<(HidElement,
     keys.into_iter()
         .zip(values)
         .filter_map(|(key, value)| {
-            (!key.is_null() && !value.is_null()).then(|| {
-                clone_value_ref(value.cast()).map(|value| (HidElement { raw: key.cast() }, value))
-            })
+            let element = HidElement::from_raw_retained(key, Some(device))?;
+            let value = clone_value_ref(value, Some(device))?;
+            Some((element, value))
         })
-        .flatten()
         .collect()
 }
 
@@ -241,7 +242,7 @@ impl HidDevice {
         if status != ffi::kIOReturnSuccess {
             return Err(HidError::IoReturn("IOHIDDeviceCopyValueMultiple", status));
         }
-        let pairs = read_element_value_dictionary(multiple);
+        let pairs = read_element_value_dictionary(multiple, self);
         if !multiple.is_null() {
             unsafe { ffi::CFRelease(multiple.cast()) };
         }
@@ -276,7 +277,7 @@ impl HidDevice {
                 status,
             ));
         }
-        let pairs = read_element_value_dictionary(multiple);
+        let pairs = read_element_value_dictionary(multiple, self);
         if !multiple.is_null() {
             unsafe { ffi::CFRelease(multiple.cast()) };
         }
@@ -333,7 +334,8 @@ impl HidDevice {
                 status,
             ));
         }
-        clone_value_ref(value).ok_or(HidError::OperationFailed("IOHIDDeviceGetValueWithCallback"))
+        clone_value_ref(value, Some(self))
+            .ok_or(HidError::OperationFailed("IOHIDDeviceGetValueWithCallback"))
     }
 
     /// Wraps `IOHIDDeviceSetReportWithCallback`.

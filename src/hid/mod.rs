@@ -30,6 +30,9 @@ pub mod usage;
 /// Value helpers wrapping `IOHIDValue*` APIs.
 pub mod value;
 
+#[cfg(test)]
+mod tests;
+
 pub use device::DeviceRemovalSubscription;
 pub use manager::{
     HidManagerOptions, ManagerDeviceSubscription, ManagerReportSubscription,
@@ -546,7 +549,6 @@ pub struct HidManager {
 }
 
 unsafe impl Send for HidManager {}
-unsafe impl Sync for HidManager {}
 
 impl Drop for HidManager {
     fn drop(&mut self) {
@@ -757,10 +759,7 @@ impl HidManager {
         let devices = buffer
             .into_iter()
             .filter(|device| !device.is_null())
-            .map(|device| {
-                unsafe { ffi::CFRetain(device) };
-                HidDevice { raw: device.cast() }
-            })
+            .map(|device| HidDevice::from_raw_retained(device.cast()))
             .collect();
         unsafe { ffi::CFRelease(set.cast()) };
         devices
@@ -779,7 +778,6 @@ pub struct HidDevice {
 }
 
 unsafe impl Send for HidDevice {}
-unsafe impl Sync for HidDevice {}
 
 impl Clone for HidDevice {
     fn clone(&self) -> Self {
@@ -1079,7 +1077,7 @@ impl HidDevice {
         if let Some(dict) = dict {
             unsafe { ffi::CFRelease(dict.cast()) };
         }
-        elements_from_array(elements, true)
+        elements_from_array(elements, true, Some(self))
     }
 
     /// Wraps `IOHIDDeviceGetValue`.
@@ -1089,7 +1087,7 @@ impl HidDevice {
         if status != ffi::kIOReturnSuccess {
             return Err(HidError::IoReturn("IOHIDDeviceGetValue", status));
         }
-        clone_value_ref(value).ok_or(HidError::OperationFailed("IOHIDDeviceGetValue"))
+        clone_value_ref(value, Some(self)).ok_or(HidError::OperationFailed("IOHIDDeviceGetValue"))
     }
 
     /// Wraps `IOHIDDeviceGetValueWithOptions`.
@@ -1105,7 +1103,8 @@ impl HidDevice {
         if status != ffi::kIOReturnSuccess {
             return Err(HidError::IoReturn("IOHIDDeviceGetValueWithOptions", status));
         }
-        clone_value_ref(value).ok_or(HidError::OperationFailed("IOHIDDeviceGetValueWithOptions"))
+        clone_value_ref(value, Some(self))
+            .ok_or(HidError::OperationFailed("IOHIDDeviceGetValueWithOptions"))
     }
 
     /// Wraps `IOHIDDeviceSetValue`.
@@ -1186,7 +1185,6 @@ impl HidDevice {
 
     /// Create a `HidDevice` from a raw ref that we do **not** already own;
     /// `CFRetain` is called so the resulting wrapper releases on drop.
-    #[cfg(feature = "async")]
     pub(crate) fn from_raw_retained(raw: ffi::IOHIDDeviceRef) -> Self {
         debug_assert!(!raw.is_null());
         unsafe { ffi::CFRetain(raw) };
@@ -1194,14 +1192,53 @@ impl HidDevice {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-/// Wraps an `IOHIDElementRef`.
+/// Owns a retained `IOHIDElementRef` and keeps the device it belongs to alive.
 pub struct HidElement {
     raw: ffi::IOHIDElementRef,
+    device: Option<HidDevice>,
 }
 
 unsafe impl Send for HidElement {}
-unsafe impl Sync for HidElement {}
+
+impl Clone for HidElement {
+    fn clone(&self) -> Self {
+        unsafe { ffi::CFRetain(self.raw) };
+        Self {
+            raw: self.raw,
+            device: self.device.clone(),
+        }
+    }
+}
+
+impl Drop for HidElement {
+    fn drop(&mut self) {
+        unsafe { ffi::CFRelease(self.raw) };
+    }
+}
+
+impl PartialEq for HidElement {
+    fn eq(&self, other: &Self) -> bool {
+        self.raw == other.raw
+    }
+}
+
+impl Eq for HidElement {}
+
+impl core::hash::Hash for HidElement {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        ptr::hash(self.raw, state);
+    }
+}
+
+impl fmt::Debug for HidElement {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("HidElement")
+            .field("cookie", &self.cookie())
+            .field("usage_page", &self.usage_page())
+            .field("usage", &self.usage())
+            .finish_non_exhaustive()
+    }
+}
 
 #[allow(clippy::missing_errors_doc)]
 impl HidElement {
@@ -1354,35 +1391,53 @@ impl HidElement {
         unsafe { ffi::IOHIDElementGetPhysicalMax(self.raw) as i64 }
     }
 
+    pub(crate) fn from_raw_retained(
+        raw: ffi::IOHIDElementRef,
+        device: Option<&HidDevice>,
+    ) -> Option<Self> {
+        if raw.is_null() {
+            return None;
+        }
+        unsafe { ffi::CFRetain(raw) };
+        Some(Self {
+            raw,
+            device: device.cloned(),
+        })
+    }
+
     #[must_use]
     /// Wraps `IOHIDElementGetParent`.
     pub fn parent(&self) -> Option<Self> {
-        let parent = unsafe { ffi::IOHIDElementGetParent(self.raw) };
-        (!parent.is_null()).then_some(Self { raw: parent })
+        Self::from_raw_retained(
+            unsafe { ffi::IOHIDElementGetParent(self.raw) },
+            self.device.as_ref(),
+        )
     }
 
     #[must_use]
     /// Wraps `IOHIDElementGetChildren`.
     pub fn children(&self) -> Vec<Self> {
-        elements_from_array(unsafe { ffi::IOHIDElementGetChildren(self.raw) }, false)
+        elements_from_array(
+            unsafe { ffi::IOHIDElementGetChildren(self.raw) },
+            false,
+            self.device.as_ref(),
+        )
     }
 
     #[must_use]
     /// Wraps `IOHIDElementCopyAttached`.
     pub fn attached(&self) -> Vec<Self> {
-        elements_from_array(unsafe { ffi::IOHIDElementCopyAttached(self.raw) }, true)
+        elements_from_array(
+            unsafe { ffi::IOHIDElementCopyAttached(self.raw) },
+            true,
+            self.device.as_ref(),
+        )
     }
 
     #[must_use]
-    /// Wraps `IOHIDElementGetDevice`.
+    /// Returns the device this element belongs to (`IOHIDElementGetDevice`).
     pub fn device(&self) -> Option<HidDevice> {
-        let device = unsafe { ffi::IOHIDElementGetDevice(self.raw) };
-        if device.is_null() {
-            None
-        } else {
-            unsafe { ffi::CFRetain(device) };
-            Some(HidDevice { raw: device })
-        }
+        self.device.clone()
     }
 
     #[must_use]
@@ -1464,9 +1519,10 @@ impl HidElement {
     }
 }
 
-/// Owns an `IOHIDValueRef`.
+/// Owns an `IOHIDValueRef` and keeps the device of its element alive.
 pub struct HidValue {
     raw: ffi::IOHIDValueRef,
+    device: Option<HidDevice>,
 }
 
 unsafe impl Send for HidValue {}
@@ -1475,7 +1531,10 @@ unsafe impl Sync for HidValue {}
 impl Clone for HidValue {
     fn clone(&self) -> Self {
         unsafe { ffi::CFRetain(self.raw) };
-        Self { raw: self.raw }
+        Self {
+            raw: self.raw,
+            device: self.device.clone(),
+        }
     }
 }
 
@@ -1508,8 +1567,25 @@ impl HidValue {
         unsafe { ffi::IOHIDValueGetTypeID() }
     }
 
+    pub(crate) fn from_raw_owned(
+        raw: ffi::IOHIDValueRef,
+        device: Option<&HidDevice>,
+    ) -> Option<Self> {
+        if raw.is_null() {
+            return None;
+        }
+        if unsafe { ffi::IOHIDValueGetElement(raw) }.is_null() {
+            unsafe { ffi::CFRelease(raw) };
+            return None;
+        }
+        Some(Self {
+            raw,
+            device: device.cloned(),
+        })
+    }
+
     /// Wraps `IOHIDValueCreateWithIntegerValue`.
-    pub fn from_integer(element: HidElement, timestamp: u64, value: i64) -> Result<Self, HidError> {
+    pub fn from_integer(element: &HidElement, timestamp: u64, value: i64) -> Result<Self, HidError> {
         let value = ffi::CFIndex::try_from(value).map_err(|_| {
             HidError::InvalidArgument("integer value does not fit CFIndex".to_owned())
         })?;
@@ -1521,17 +1597,13 @@ impl HidValue {
                 value,
             )
         };
-        if raw.is_null() {
-            Err(HidError::OperationFailed(
-                "IOHIDValueCreateWithIntegerValue",
-            ))
-        } else {
-            Ok(Self { raw })
-        }
+        Self::from_raw_owned(raw, element.device.as_ref()).ok_or(HidError::OperationFailed(
+            "IOHIDValueCreateWithIntegerValue",
+        ))
     }
 
     /// Wraps `IOHIDValueCreateWithBytes`.
-    pub fn from_bytes(element: HidElement, timestamp: u64, bytes: &[u8]) -> Result<Self, HidError> {
+    pub fn from_bytes(element: &HidElement, timestamp: u64, bytes: &[u8]) -> Result<Self, HidError> {
         let length = ffi::CFIndex::try_from(bytes.len()).map_err(|_| {
             HidError::InvalidArgument("byte slice length does not fit CFIndex".to_owned())
         })?;
@@ -1544,18 +1616,18 @@ impl HidValue {
                 length,
             )
         };
-        if raw.is_null() {
-            Err(HidError::OperationFailed("IOHIDValueCreateWithBytes"))
-        } else {
-            Ok(Self { raw })
-        }
+        Self::from_raw_owned(raw, element.device.as_ref())
+            .ok_or(HidError::OperationFailed("IOHIDValueCreateWithBytes"))
     }
 
     #[must_use]
     /// Wraps `IOHIDValueGetElement`.
     pub fn element(&self) -> HidElement {
+        let raw = unsafe { ffi::IOHIDValueGetElement(self.raw) };
+        unsafe { ffi::CFRetain(raw) };
         HidElement {
-            raw: unsafe { ffi::IOHIDValueGetElement(self.raw) },
+            raw,
+            device: self.device.clone(),
         }
     }
 
@@ -1682,13 +1754,14 @@ unsafe extern "C" fn timestamped_report_trampoline(
 unsafe extern "C" fn value_trampoline(
     context: *mut c_void,
     result: ffi::IOReturn,
-    _sender: *mut c_void,
+    sender: *mut c_void,
     value: ffi::IOHIDValueRef,
 ) {
     if context.is_null() || value.is_null() || result != ffi::kIOReturnSuccess {
         return;
     }
-    let Some(value) = clone_value_ref(value) else {
+    let device = (!sender.is_null()).then(|| HidDevice::from_raw_retained(sender.cast()));
+    let Some(value) = clone_value_ref(value, device.as_ref()) else {
         return;
     };
     let context = unsafe { &*context.cast::<ValueContext>() };
@@ -1813,7 +1886,10 @@ unsafe fn close_and_unschedule_device(device: ffi::IOHIDDeviceRef, run_loop: ffi
     let _ = ffi::IOHIDDeviceClose(device, ffi::kIOHIDOptionsTypeNone);
 }
 
-pub(crate) fn clone_value_ref(raw: ffi::IOHIDValueRef) -> Option<HidValue> {
+pub(crate) fn clone_value_ref(
+    raw: ffi::IOHIDValueRef,
+    device: Option<&HidDevice>,
+) -> Option<HidValue> {
     if raw.is_null() {
         return None;
     }
@@ -1836,7 +1912,7 @@ pub(crate) fn clone_value_ref(raw: ffi::IOHIDValueRef) -> Option<HidValue> {
                 )
             };
             if !copied.is_null() {
-                return Some(HidValue { raw: copied });
+                return HidValue::from_raw_owned(copied, device);
             }
         }
     }
@@ -1844,7 +1920,7 @@ pub(crate) fn clone_value_ref(raw: ffi::IOHIDValueRef) -> Option<HidValue> {
     let copied = unsafe {
         ffi::IOHIDValueCreateWithIntegerValue(ffi::kCFAllocatorDefault, element, timestamp, integer)
     };
-    (!copied.is_null()).then_some(HidValue { raw: copied })
+    HidValue::from_raw_owned(copied, device)
 }
 
 fn build_cf_dictionary(entries: &[(String, MatchValue)]) -> Result<ffi::CFDictionaryRef, HidError> {
@@ -1935,7 +2011,11 @@ where
     Ok(array.cast())
 }
 
-fn elements_from_array(array: ffi::CFArrayRef, release_after: bool) -> Vec<HidElement> {
+fn elements_from_array(
+    array: ffi::CFArrayRef,
+    release_after: bool,
+    device: Option<&HidDevice>,
+) -> Vec<HidElement> {
     if array.is_null() {
         return Vec::new();
     }
@@ -1943,11 +2023,12 @@ fn elements_from_array(array: ffi::CFArrayRef, release_after: bool) -> Vec<HidEl
     let count = usize::try_from(count).unwrap_or(0);
     let mut elements = Vec::with_capacity(count);
     for index in 0..count {
-        let raw = unsafe {
-            ffi::CFArrayGetValueAtIndex(array, ffi::CFIndex::try_from(index).unwrap_or(0))
+        let Ok(index) = ffi::CFIndex::try_from(index) else {
+            break;
         };
-        if !raw.is_null() {
-            elements.push(HidElement { raw: raw.cast() });
+        let raw = unsafe { ffi::CFArrayGetValueAtIndex(array, index) };
+        if let Some(element) = HidElement::from_raw_retained(raw, device) {
+            elements.push(element);
         }
     }
     if release_after {

@@ -50,18 +50,21 @@ impl HidTransactionOptions {
     }
 }
 
-/// Owns an `IOHIDTransactionRef` returned by `IOHIDTransactionCreate`.
+/// Owns an `IOHIDTransactionRef` returned by `IOHIDTransactionCreate` and its device.
 pub struct HidTransaction {
     raw: ffi::IOHIDTransactionRef,
+    device: HidDevice,
 }
 
 unsafe impl Send for HidTransaction {}
-unsafe impl Sync for HidTransaction {}
 
 impl Clone for HidTransaction {
     fn clone(&self) -> Self {
         unsafe { ffi::CFRetain(self.raw.cast_const()) };
-        Self { raw: self.raw }
+        Self {
+            raw: self.raw,
+            device: self.device.clone(),
+        }
     }
 }
 
@@ -104,20 +107,17 @@ impl HidTransaction {
         if raw.is_null() {
             Err(HidError::OperationFailed("IOHIDTransactionCreate"))
         } else {
-            Ok(Self { raw })
+            Ok(Self {
+                raw,
+                device: device.clone(),
+            })
         }
     }
 
     #[must_use]
-    /// Wraps `IOHIDTransactionGetDevice`.
+    /// Returns the device the transaction was created for (`IOHIDTransactionGetDevice`).
     pub fn device(&self) -> Option<HidDevice> {
-        let device = unsafe { ffi::IOHIDTransactionGetDevice(self.raw) };
-        if device.is_null() {
-            None
-        } else {
-            unsafe { ffi::CFRetain(device) };
-            Some(HidDevice { raw: device })
-        }
+        Some(self.device.clone())
     }
 
     #[must_use]
@@ -179,7 +179,10 @@ impl HidTransaction {
     #[must_use]
     /// Wraps `IOHIDTransactionGetValue`.
     pub fn get_value(&self, element: &HidElement, options: ffi::IOOptionBits) -> Option<HidValue> {
-        clone_value_ref(unsafe { ffi::IOHIDTransactionGetValue(self.raw, element.raw, options) })
+        clone_value_ref(
+            unsafe { ffi::IOHIDTransactionGetValue(self.raw, element.raw, options) },
+            Some(&self.device),
+        )
     }
 
     /// Wraps `IOHIDTransactionCommit`.

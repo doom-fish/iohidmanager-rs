@@ -13,10 +13,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     };
 
-    let integer = HidValue::from_integer(element, 0, 1)?;
-    let bytes = HidValue::from_bytes(element, 0, &[1])?;
+    let integer = HidValue::from_integer(&element, 0, 1)?;
+    let bytes = HidValue::from_bytes(&element, 0, &[1])?;
     let no_copy_bytes = [1_u8];
-    let no_copy = unsafe { HidValue::from_bytes_no_copy(element, 0, &no_copy_bytes) }?;
+    let no_copy = unsafe { HidValue::from_bytes_no_copy(&element, 0, &no_copy_bytes) }?;
     println!(
         "constructed values: integer={} bytes={} no-copy={}",
         integer.integer_value(),

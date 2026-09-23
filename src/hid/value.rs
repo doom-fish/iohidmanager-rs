@@ -14,10 +14,10 @@ impl HidValue {
     /// # Errors
     ///
     /// Returns `HidError::InvalidArgument` when the slice length does not fit
-    /// `CFIndex`, or `HidError::OperationFailed` when `CoreHID` rejects the
-    /// value creation request.
+    /// `CFIndex`, or `HidError::OperationFailed` when
+    /// `IOHIDValueCreateWithBytesNoCopy` returns NULL.
     pub unsafe fn from_bytes_no_copy(
-        element: HidElement,
+        element: &HidElement,
         timestamp: u64,
         bytes: &[u8],
     ) -> Result<Self, HidError> {
@@ -33,10 +33,7 @@ impl HidValue {
                 length,
             )
         };
-        if raw.is_null() {
-            Err(HidError::OperationFailed("IOHIDValueCreateWithBytesNoCopy"))
-        } else {
-            Ok(Self { raw })
-        }
+        Self::from_raw_owned(raw, element.device.as_ref())
+            .ok_or(HidError::OperationFailed("IOHIDValueCreateWithBytesNoCopy"))
     }
 }

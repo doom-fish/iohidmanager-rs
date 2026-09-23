@@ -1,5 +1,6 @@
 use core::ffi::c_void;
 use core::ptr;
+use std::time::Duration;
 
 #[allow(clippy::wildcard_imports)]
 use super::*;
@@ -42,18 +43,21 @@ impl HidQueueOptions {
     }
 }
 
-/// Owns an `IOHIDQueueRef` returned by `IOHIDQueueCreate`.
+/// Owns an `IOHIDQueueRef` returned by `IOHIDQueueCreate` and the device it reads from.
 pub struct HidQueue {
     raw: ffi::IOHIDQueueRef,
+    device: HidDevice,
 }
 
 unsafe impl Send for HidQueue {}
-unsafe impl Sync for HidQueue {}
 
 impl Clone for HidQueue {
     fn clone(&self) -> Self {
         unsafe { ffi::CFRetain(self.raw.cast_const()) };
-        Self { raw: self.raw }
+        Self {
+            raw: self.raw,
+            device: self.device.clone(),
+        }
     }
 }
 
@@ -123,20 +127,17 @@ impl HidQueue {
         if raw.is_null() {
             Err(HidError::OperationFailed("IOHIDQueueCreate"))
         } else {
-            Ok(Self { raw })
+            Ok(Self {
+                raw,
+                device: device.clone(),
+            })
         }
     }
 
     #[must_use]
-    /// Wraps `IOHIDQueueGetDevice`.
+    /// Returns the device the queue was created for (`IOHIDQueueGetDevice`).
     pub fn device(&self) -> Option<HidDevice> {
-        let device = unsafe { ffi::IOHIDQueueGetDevice(self.raw) };
-        if device.is_null() {
-            None
-        } else {
-            unsafe { ffi::CFRetain(device) };
-            Some(HidDevice { raw: device })
-        }
+        Some(self.device.clone())
     }
 
     #[must_use]
@@ -210,13 +211,23 @@ impl HidQueue {
     #[must_use]
     /// Wraps `IOHIDQueueCopyNextValue`.
     pub fn copy_next_value(&self) -> Option<HidValue> {
-        clone_value_ref(unsafe { ffi::IOHIDQueueCopyNextValue(self.raw) })
+        HidValue::from_raw_owned(
+            unsafe { ffi::IOHIDQueueCopyNextValue(self.raw) },
+            Some(&self.device),
+        )
     }
 
     #[must_use]
     /// Wraps `IOHIDQueueCopyNextValueWithTimeout`.
-    pub fn copy_next_value_with_timeout(&self, timeout_ms: f64) -> Option<HidValue> {
-        clone_value_ref(unsafe { ffi::IOHIDQueueCopyNextValueWithTimeout(self.raw, timeout_ms) })
+    ///
+    /// Timeouts longer than `u32::MAX` milliseconds are clamped to that limit.
+    pub fn copy_next_value_with_timeout(&self, timeout: Duration) -> Option<HidValue> {
+        HidValue::from_raw_owned(
+            unsafe {
+                ffi::IOHIDQueueCopyNextValueWithTimeout(self.raw, queue_timeout_seconds(timeout))
+            },
+            Some(&self.device),
+        )
     }
 
     /// Wraps `IOHIDQueueRegisterValueAvailableCallback`.
@@ -253,4 +264,10 @@ impl HidQueue {
     pub const fn as_ptr(&self) -> ffi::IOHIDQueueRef {
         self.raw
     }
+}
+
+pub(crate) fn queue_timeout_seconds(timeout: Duration) -> ffi::CFTimeInterval {
+    let millis = timeout.as_millis().min(u128::from(u32::MAX));
+    let millis = u32::try_from(millis).unwrap_or(u32::MAX);
+    f64::from(millis) / 1000.0
 }

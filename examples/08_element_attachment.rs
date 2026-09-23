@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    elements[0].attach(&elements[1]);
+    elements[0].attach(&elements[1])?;
     elements[0].detach(&elements[1]);
     println!("element attachment round-trip completed");
     Ok(())

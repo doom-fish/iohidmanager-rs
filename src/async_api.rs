@@ -141,10 +141,10 @@ unsafe extern "C" fn mgr_input_value_cb(
     if context.is_null() || sender.is_null() || value.is_null() || result != ffi::kIOReturnSuccess {
         return;
     }
-    let Some(value) = clone_value_ref(value) else {
+    let device = HidDevice::from_raw_retained(sender.cast());
+    let Some(value) = clone_value_ref(value, Some(&device)) else {
         return;
     };
-    let device = HidDevice::from_raw_retained(sender.cast());
     // SAFETY: context is non-null (checked above) and points to the
     // `AsyncStreamSender<InputValueEvent>` that was `Box::into_raw`'d in
     // `subscribe()`; it lives until the run-loop cleanup block drops it.
@@ -716,13 +716,14 @@ impl DeviceRemovalStream {
 unsafe extern "C" fn dev_input_value_cb(
     context: *mut c_void,
     result: ffi::IOReturn,
-    _sender: *mut c_void,
+    sender: *mut c_void,
     value: ffi::IOHIDValueRef,
 ) {
     if context.is_null() || value.is_null() || result != ffi::kIOReturnSuccess {
         return;
     }
-    let Some(value) = clone_value_ref(value) else {
+    let device = (!sender.is_null()).then(|| HidDevice::from_raw_retained(sender.cast()));
+    let Some(value) = clone_value_ref(value, device.as_ref()) else {
         return;
     };
     // SAFETY: context is non-null (checked above) and points to the

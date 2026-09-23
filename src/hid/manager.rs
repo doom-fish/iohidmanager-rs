@@ -136,7 +136,7 @@ unsafe extern "C" fn manager_value_trampoline(
     let Some(device) = retained_device_from_sender(sender) else {
         return;
     };
-    let Some(value) = clone_value_ref(value) else {
+    let Some(value) = clone_value_ref(value, Some(&device)) else {
         return;
     };
     // SAFETY: context is non-null (checked above) and points to a
