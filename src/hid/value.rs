@@ -1,6 +1,6 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
-use crate::{bridge, ffi_impl as ffi};
+use crate::ffi_impl as ffi;
 
 impl HidValue {
     /// Create a value that references the provided byte slice without asking
@@ -25,21 +25,18 @@ impl HidValue {
             HidError::InvalidArgument("byte slice length does not fit CFIndex".to_owned())
         })?;
         let raw = unsafe {
-            bridge::iohidmanager_swift_value_create_with_bytes_no_copy(
-                element.raw.cast_mut(),
+            ffi::IOHIDValueCreateWithBytesNoCopy(
+                ffi::kCFAllocatorDefault,
+                element.raw,
                 timestamp,
-                if bytes.is_empty() {
-                    core::ptr::null()
-                } else {
-                    bytes.as_ptr()
-                },
+                bytes.as_ptr(),
                 length,
             )
         };
         if raw.is_null() {
             Err(HidError::OperationFailed("IOHIDValueCreateWithBytesNoCopy"))
         } else {
-            Ok(Self { raw: raw.cast() })
+            Ok(Self { raw })
         }
     }
 }

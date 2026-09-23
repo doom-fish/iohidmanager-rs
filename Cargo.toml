@@ -16,8 +16,6 @@ include = [
     "src/**/*",
     "examples/**/*",
     "tests/**/*",
-    "swift-bridge/Package.swift",
-    "swift-bridge/Sources/**/*",
     "build.rs",
     "Cargo.toml",
     "README.md",

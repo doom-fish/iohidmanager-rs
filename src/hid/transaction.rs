@@ -2,7 +2,7 @@ use core::ptr;
 
 #[allow(clippy::wildcard_imports)]
 use super::*;
-use crate::{bridge, ffi_impl as ffi};
+use crate::ffi_impl as ffi;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// Wraps `IOHIDTransactionDirectionType`.
@@ -79,7 +79,7 @@ impl HidTransaction {
     #[must_use]
     /// Wraps `IOHIDTransactionGetTypeID`.
     pub fn type_id() -> ffi::CFTypeID {
-        unsafe { bridge::iohidmanager_swift_transaction_type_id() }
+        unsafe { ffi::IOHIDTransactionGetTypeID() }
     }
 
     /// Wraps `IOHIDTransactionCreate` with `kIOHIDTransactionOptionsNone`.

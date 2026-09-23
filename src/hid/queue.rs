@@ -3,7 +3,7 @@ use core::ptr;
 
 #[allow(clippy::wildcard_imports)]
 use super::*;
-use crate::{bridge, ffi_impl as ffi};
+use crate::ffi_impl as ffi;
 use doom_fish_utils::panic_safe::catch_user_panic;
 
 #[allow(clippy::type_complexity)]
@@ -101,7 +101,7 @@ impl HidQueue {
     #[must_use]
     /// Wraps `IOHIDQueueGetTypeID`.
     pub fn type_id() -> ffi::CFTypeID {
-        unsafe { bridge::iohidmanager_swift_queue_type_id() }
+        unsafe { ffi::IOHIDQueueGetTypeID() }
     }
 
     /// Wraps `IOHIDQueueCreate` with `kIOHIDQueueOptionsTypeNone`.

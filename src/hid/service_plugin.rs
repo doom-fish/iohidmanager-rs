@@ -1,5 +1,3 @@
-use crate::bridge;
-
 pub use crate::ffi_impl::{
     CFUUIDBytes, IOHIDDeviceDeviceInterface, IOHIDDeviceQueueInterface,
     IOHIDDeviceTimeStampedDeviceInterface, IOHIDDeviceTransactionInterface, IOHIDIUnknownAddRef,
@@ -54,16 +52,6 @@ impl ServicePlugInUuid {
                 0x06, 0xD2,
             ],
         }
-    }
-
-    #[must_use]
-    /// Fetches the UUID bytes from the Swift bridge mirror.
-    pub fn bridge_bytes(self) -> Option<[u8; 16]> {
-        let mut bytes = [0_u8; 16];
-        let ok = unsafe {
-            bridge::iohidmanager_swift_service_plugin_uuid(self as u32, bytes.as_mut_ptr())
-        };
-        ok.then_some(bytes)
     }
 
     #[must_use]

@@ -1,4 +1,4 @@
-use crate::{bridge, ffi_impl as ffi};
+use crate::ffi_impl as ffi;
 
 /// Aliases `IOHIDAccelerationAlgorithmType`.
 pub type IOHIDAccelerationAlgorithmType = ffi::IOHIDAccelerationAlgorithmType;
@@ -145,16 +145,4 @@ pub fn numeric_constant(symbol: &str) -> Option<u64> {
         .iter()
         .find(|definition| definition.symbol == symbol)
         .map(|definition| definition.value)
-}
-
-#[must_use]
-/// Returns the Swift-bridge mirror of `kIOHIDQueueOptionsTypeEnqueueAll`.
-pub fn bridge_queue_enqueue_all() -> u32 {
-    unsafe { bridge::iohidmanager_swift_keys_queue_enqueue_all() }
-}
-
-#[must_use]
-/// Returns the Swift-bridge mirror of `kIOHIDStandardTypeANSI`.
-pub fn bridge_standard_type_ansi() -> u32 {
-    unsafe { bridge::iohidmanager_swift_keys_standard_type_ansi() }
 }

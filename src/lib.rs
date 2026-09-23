@@ -10,7 +10,6 @@
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-mod bridge;
 pub mod error;
 #[path = "ffi/mod.rs"]
 pub(crate) mod ffi_impl;

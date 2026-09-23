@@ -1,4 +1,4 @@
-use crate::{bridge, ffi_impl as ffi};
+use crate::ffi_impl as ffi;
 
 /// Aliases `IOHIDKeyboardEventOptions`.
 pub type IOHIDKeyboardEventOptions = ffi::IOHIDKeyboardEventOptions;
@@ -164,15 +164,3 @@ pub const ALL_EVENT_SYSTEM_KEYS: &[(&str, &str)] = &[
         SENSOR_CONTROL_OPTIONS_KEY,
     ),
 ];
-
-#[must_use]
-/// Returns the Swift-bridge mirror of `kIOHIDKeyboardEventOptionsNoKeyRepeat`.
-pub fn bridge_keyboard_no_key_repeat() -> u32 {
-    unsafe { bridge::iohidmanager_swift_event_keyboard_no_repeat() }
-}
-
-#[must_use]
-/// Returns the Swift-bridge mirror of `kIOHIDServiceSensorControlDecimation`.
-pub fn bridge_sensor_control_decimation() -> u32 {
-    unsafe { bridge::iohidmanager_swift_event_sensor_control_decimation() }
-}

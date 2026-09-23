@@ -1,5 +1,3 @@
-use crate::bridge;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// Describes one usage-page or usage constant mirrored from `IOHIDUsageTables.h`.
 pub struct UsageConstant {
@@ -37,22 +35,4 @@ pub fn constant(symbol: &str) -> Option<UsageConstant> {
         .iter()
         .copied()
         .find(|definition| definition.symbol == symbol)
-}
-
-#[must_use]
-/// Returns the Swift-bridge mirror of `kHIDPage_GenericDesktop`.
-pub fn bridge_generic_desktop_page() -> u32 {
-    unsafe { bridge::iohidmanager_swift_usage_page_generic_desktop() }
-}
-
-#[must_use]
-/// Returns the Swift-bridge mirror of `kHIDUsage_GD_Keyboard`.
-pub fn bridge_keyboard_usage() -> u32 {
-    unsafe { bridge::iohidmanager_swift_usage_generic_desktop_keyboard() }
-}
-
-#[must_use]
-/// Returns the Swift-bridge mirror of `kHIDUsage_GD_Mouse`.
-pub fn bridge_mouse_usage() -> u32 {
-    unsafe { bridge::iohidmanager_swift_usage_generic_desktop_mouse() }
 }
