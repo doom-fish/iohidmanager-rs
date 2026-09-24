@@ -327,12 +327,11 @@ impl core::ops::BitOrAssign for HidManagerOptions {
 impl HidManager {
     /// Wraps `IOHIDManagerCreate` and `IOHIDManagerOpen`.
     pub fn with_options(options: HidManagerOptions) -> Result<Self, HidError> {
-        let bits = options.bits();
-        let raw = unsafe { ffi::IOHIDManagerCreate(ffi::kCFAllocatorDefault, bits) };
+        let raw = unsafe { ffi::IOHIDManagerCreate(ffi::kCFAllocatorDefault, options.bits()) };
         if raw.is_null() {
             return Err(HidError::ManagerCreateFailed);
         }
-        let status = unsafe { ffi::IOHIDManagerOpen(raw, bits) };
+        let status = unsafe { ffi::IOHIDManagerOpen(raw, ffi::kIOHIDOptionsTypeNone) };
         if status != ffi::kIOReturnSuccess {
             unsafe { ffi::CFRelease(raw) };
             return Err(HidError::ManagerOpenFailed(status));
