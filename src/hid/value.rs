@@ -3,8 +3,8 @@ use super::*;
 use crate::ffi_impl as ffi;
 
 impl HidValue {
-    /// Create a value that references the provided byte slice without asking
-    /// the bridge to duplicate it first.
+    /// Create a value that references the provided byte slice without copying
+    /// it first.
     ///
     /// # Safety
     ///

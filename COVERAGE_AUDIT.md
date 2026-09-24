@@ -8,6 +8,8 @@ GAPS: 0
 EXEMPT: 15
 COVERAGE_PCT: 100.00%
 
+> **What these numbers measure.** A symbol counts as VERIFIED when it has a raw declaration in `iohidmanager::ffi`, a mirrored constant, or an entry in the generated key and usage catalogs; VERIFIED does not mean a safe wrapper exists. The "Wrapped by" column names a safe type for some functions that have none: `IOHIDDeviceGetReportWithCallback`, `IOHIDDeviceSetDispatchQueue`, `IOHIDDeviceSetCancelHandler`, `IOHIDDeviceSetInputValueMatching`, `IOHIDElementCreateWithDictionary`, `IOHIDManagerSetDispatchQueue`, `IOHIDManagerSetCancelHandler`, `IOHIDManagerUnscheduleFromRunLoop`, `IOHIDQueueSetDispatchQueue` and `IOHIDQueueSetCancelHandler` are raw only; the `*Activate` and `*Cancel` wrappers are `unsafe fn`; and the run-loop scheduling functions are used only inside subscriptions. `COVERAGE.md` gives the safe status per function. This audit was taken against the macOS 26.2 SDK before 0.11, and the `CoreHID` framework is outside its scope.
+
 ## 🟢 VERIFIED
 | Symbol | Kind | Header | Wrapped by |
 | --- | --- | --- | --- |

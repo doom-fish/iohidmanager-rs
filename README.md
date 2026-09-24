@@ -2,7 +2,12 @@
 
 Safe Rust bindings for Apple's [IOKit HID](https://developer.apple.com/documentation/iokit/iohidmanager_h) subsystem on macOS — enumerate connected mice, keyboards, gamepads, and other HID devices.
 
-> **Status:** actively developed. v0.7 adds an executor-agnostic `async` feature with 7 stream types wrapping every IOKit HID callback API; v0.6 ships a Swift bridge for `IOKit/hid`, keeps the raw C surface behind the `raw-ffi` feature (enabled by default), and adds logical-area coverage for Manager, Device, Element, Value, Transaction, Queue, Keys, Usage, ServicePlugIn, and EventSystem.
+> **Status:** actively developed. The crate delivers every callback on a background event-loop thread owned by the crate, gives each subscription its own `IOKit` manager or device object, and makes subscribing fallible instead of hiding open and permission failures.
+
+## Requirements
+
+- macOS. The crate calls `IOKit` directly; there is no Swift bridge.
+- Reading input from keyboards and keypads needs the **Input Monitoring** permission (System Settings → Privacy & Security). Without it, opening those devices fails with `kIOReturnNotPermitted`, and subscriptions that need an open device return `HidError::DeviceOpenFailed` or `HidError::ManagerOpenFailed`. Enumerating devices and watching them arrive or leave works without it.
 
 ## Quick start
 
@@ -34,23 +39,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-## Highlights in v0.7
+## Callbacks and subscriptions
 
-- `async` Cargo feature exposing 7 executor-agnostic stream types wrapping every `IOKit` HID callback API.
-- Each stream spawns a dedicated background `CFRunLoop` thread — no async runtime required.
-- Stream types: `ManagerInputValueStream`, `ManagerDeviceMatchingStream`, `ManagerDeviceRemovalStream`, `ManagerInputReportStream`, `DeviceRemovalStream`, `DeviceInputValueStream`, `QueueValueStream`.
+```rust,no_run
+use iohidmanager::prelude::*;
 
-## Highlights in v0.6
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let manager = HidManager::new()?;
+    manager.set_device_matching(Some(HidUsage::GamePad))?;
 
-- Swift bridge target under `swift-bridge/` with one Swift file per logical area.
-- `raw-ffi` Cargo feature (enabled by default) re-exporting the raw `IOKit/hid` declarations.
-- New safe transaction and queue wrappers: `HidTransaction`, `HidTransactionDirection`, `HidQueue`, and `HidQueueOptions`.
-- Manager matching helpers for input-value filtering.
-- Device helpers for multi-value reads/writes, removal callbacks, and timeout-based value/report setters.
-- Element attach/detach helpers.
-- `unsafe { HidValue::from_bytes_no_copy(...) }` bridged through Swift.
-- Generated `keys` and `usage` catalogs, event-system constants, and service-plugin UUID helpers.
-- 15 runnable examples and per-area smoke tests.
+    let arrivals = manager.on_device_matching(|device| {
+        println!("attached: {:?}", device.info().product);
+    })?;
+
+    std::thread::sleep(std::time::Duration::from_secs(5));
+    drop(arrivals);
+    Ok(())
+}
+```
+
+- Callbacks run on one background thread that the crate starts on first use, so no caller run loop has to run. Keep them short: a callback that blocks delays every other subscription.
+- Every subscription opens its own `IOKit` object: manager subscriptions use a private `IOHIDManager` built from the device and input-value matching set on the `HidManager` at the time you subscribe, and device subscriptions use a private `IOHIDDevice` for the same service. Subscriptions therefore never replace or unschedule each other, and dropping one never closes the device or manager you hold.
+- Manager subscriptions need `set_device_matching` (or `_dict` / `_multiple`) first; otherwise they return `HidError::InvalidArgument`. `None` matches every device.
+- Dropping a subscription stops delivery at once. The `IOKit` objects and the callback are released on the event-loop thread after any callback that is already running returns, so dropping never waits and may happen inside the callback itself.
+- Subscriptions never take exclusive access. Seize a device only explicitly, with `HidDevice::open_with_options(keys::OPTIONS_TYPE_SEIZE_DEVICE)`.
+- `HidQueue::on_value_available` allows one subscription per queue at a time.
+- The dispatch-queue functions (`activate`, `cancel`) are `unsafe`: `IOKit` aborts the process unless a dispatch queue was set first, which only the raw `ffi` module can do.
+
+The `async` feature wraps the same subscriptions as executor-agnostic streams: `ManagerInputValueStream`, `ManagerDeviceMatchingStream`, `ManagerDeviceRemovalStream`, `ManagerInputReportStream`, `DeviceRemovalStream`, `DeviceInputValueStream` and `QueueValueStream`.
 
 ## Feature flags
 
@@ -68,13 +84,13 @@ cargo add iohidmanager --no-default-features
 - **Manager** — device matching, properties, enumeration, and manager-level filtering.
 - **Device** — properties, reports, synchronous values, multi-value helpers, and removal subscriptions.
 - **Element** — hierarchy traversal, metadata, and attach/detach relationships.
-- **Value** — integer/byte constructors, no-copy bridge constructor, typed accessors.
+- **Value** — integer/byte constructors, `unsafe` no-copy constructor, typed accessors.
 - **Transaction** — batched input/output element transactions.
 - **Queue** — buffered value delivery and queue depth management.
 - **Keys** — generated string/numeric key catalog from `IOHIDKeys.h`, `IOHIDDeviceKeys.h`, and `IOHIDProperties.h`.
 - **Usage** — generated usage/page constant catalog from `IOHIDUsageTables.h`.
-- **ServicePlugIn** — UUID helpers for the `IOHIDDevicePlugIn.h` interfaces.
-- **EventSystem** — `IOHIDEventServiceKeys.h` and `IOHIDEventServiceTypes.h` constants.
+- **Service plug-in** — UUID helpers for the `IOHIDDevicePlugIn.h` interfaces.
+- **Event system** — `IOHIDEventServiceKeys.h` and `IOHIDEventServiceTypes.h` constants.
 
 ## Examples
 
@@ -121,7 +137,9 @@ Pairs naturally with [`cgevents`](https://github.com/doom-fish/cgevents-rs) (syn
 - [x] `unsafe HidValue::from_bytes_no_copy`
 - [x] generated keys/usage catalogs
 - [x] service-plugin UUID helpers and event-system constants
-- [x] Swift bridge + `raw-ffi` feature split
+- [x] `raw-ffi` feature split
+- [x] callbacks on a crate-owned event loop with per-subscription `IOKit` objects
+- [ ] the macOS 15 `CoreHID` framework (not wrapped)
 
 ## License
 
