@@ -179,33 +179,6 @@ impl HidDevice {
         }
     }
 
-    /// Wraps `IOHIDDeviceSetValueMultipleWithCallback`.
-    pub fn set_value_multiple_with_timeout(
-        &self,
-        values: &[(HidElement, HidValue)],
-        timeout_ms: f64,
-    ) -> Result<(), HidError> {
-        let dict = build_element_value_dictionary(values)?;
-        let status = unsafe {
-            ffi::IOHIDDeviceSetValueMultipleWithCallback(
-                self.raw,
-                dict,
-                timeout_ms,
-                None,
-                ptr::null_mut(),
-            )
-        };
-        unsafe { ffi::CFRelease(dict.cast()) };
-        if status == ffi::kIOReturnSuccess {
-            Ok(())
-        } else {
-            Err(HidError::IoReturn(
-                "IOHIDDeviceSetValueMultipleWithCallback",
-                status,
-            ))
-        }
-    }
-
     /// Wraps `IOHIDDeviceCopyValueMultiple`.
     pub fn copy_value_multiple(
         &self,
@@ -227,95 +200,6 @@ impl HidDevice {
             unsafe { ffi::CFRelease(multiple.cast()) };
         }
         Ok(pairs)
-    }
-
-    /// Wraps `IOHIDDeviceCopyValueMultipleWithCallback`.
-    pub fn copy_value_multiple_with_timeout(
-        &self,
-        elements: &[HidElement],
-        timeout_ms: f64,
-    ) -> Result<Vec<(HidElement, HidValue)>, HidError> {
-        if elements.is_empty() {
-            return Ok(Vec::new());
-        }
-        let array = build_element_array(elements)?;
-        let mut multiple = ptr::null();
-        let status = unsafe {
-            ffi::IOHIDDeviceCopyValueMultipleWithCallback(
-                self.raw,
-                array,
-                &raw mut multiple,
-                timeout_ms,
-                None,
-                ptr::null_mut(),
-            )
-        };
-        unsafe { ffi::CFRelease(array.cast()) };
-        if status != ffi::kIOReturnSuccess {
-            return Err(HidError::IoReturn(
-                "IOHIDDeviceCopyValueMultipleWithCallback",
-                status,
-            ));
-        }
-        let pairs = read_element_value_dictionary(multiple, self);
-        if !multiple.is_null() {
-            unsafe { ffi::CFRelease(multiple.cast()) };
-        }
-        Ok(pairs)
-    }
-
-    /// Wraps `IOHIDDeviceSetValueWithCallback`.
-    pub fn set_value_with_timeout(
-        &self,
-        element: &HidElement,
-        value: &HidValue,
-        timeout_ms: f64,
-    ) -> Result<(), HidError> {
-        let status = unsafe {
-            ffi::IOHIDDeviceSetValueWithCallback(
-                self.raw,
-                element.raw,
-                value.raw,
-                timeout_ms,
-                None,
-                ptr::null_mut(),
-            )
-        };
-        if status == ffi::kIOReturnSuccess {
-            Ok(())
-        } else {
-            Err(HidError::IoReturn(
-                "IOHIDDeviceSetValueWithCallback",
-                status,
-            ))
-        }
-    }
-
-    /// Wraps `IOHIDDeviceGetValueWithCallback`.
-    pub fn get_value_with_timeout(
-        &self,
-        element: &HidElement,
-        timeout_ms: f64,
-    ) -> Result<HidValue, HidError> {
-        let mut value = ptr::null();
-        let status = unsafe {
-            ffi::IOHIDDeviceGetValueWithCallback(
-                self.raw,
-                element.raw,
-                &raw mut value,
-                timeout_ms,
-                None,
-                ptr::null_mut(),
-            )
-        };
-        if status != ffi::kIOReturnSuccess {
-            return Err(HidError::IoReturn(
-                "IOHIDDeviceGetValueWithCallback",
-                status,
-            ));
-        }
-        clone_value_ref(value, Some(self))
-            .ok_or(HidError::OperationFailed("IOHIDDeviceGetValueWithCallback"))
     }
 
     /// Wraps `IOHIDDeviceSetReportWithCallback`.

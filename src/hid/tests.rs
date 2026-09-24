@@ -218,16 +218,6 @@ fn owned_values_reject_null() {
 }
 
 #[test]
-fn queue_timeouts_are_seconds_for_iokit() {
-    assert!((queue::queue_timeout_seconds(Duration::from_millis(1500)) - 1.5).abs() < f64::EPSILON);
-    assert!(queue::queue_timeout_seconds(Duration::ZERO).abs() < f64::EPSILON);
-    assert!(
-        (queue::queue_timeout_seconds(Duration::MAX) - f64::from(u32::MAX) / 1000.0).abs()
-            < f64::EPSILON
-    );
-}
-
-#[test]
 fn report_buffers_follow_the_device_maximum() {
     assert_eq!(report_buffer_len(Some(8)), 8);
     assert_eq!(report_buffer_len(Some(0)), DEFAULT_REPORT_BUFFER_LEN);
@@ -453,6 +443,45 @@ fn value_info_copies_the_element_identity_and_payload() {
             bytes: vec![7],
         }
     );
+}
+
+#[test]
+fn transaction_directions_keep_unknown_values() {
+    for (raw, direction) in [
+        (0, HidTransactionDirection::Input),
+        (1, HidTransactionDirection::Output),
+        (7, HidTransactionDirection::Unknown(7)),
+    ] {
+        assert_eq!(HidTransactionDirection::from_raw(raw), direction);
+        assert_eq!(direction.as_raw(), raw);
+    }
+}
+
+#[test]
+fn strings_with_multibyte_characters_round_trip() {
+    for text in ["", "plain", "Größe ÷ 2", "手柄 🎮🕹️"] {
+        let string = make_cfstring(text).expect("cfstring");
+        let copied = cfstring_to_string(string);
+        unsafe { ffi::CFRelease(string.cast()) };
+        assert_eq!(copied.as_deref(), Some(text));
+    }
+}
+
+#[test]
+fn setters_reject_keys_with_nul_before_calling_iokit() {
+    let raw = DeviceLessElement::new();
+    let element = HidElement::from_raw_retained(raw.0, None).expect("element");
+    let manager = HidManager::new().expect("manager");
+    for result in [
+        element.set_property_u32("bad\0key", 1),
+        element.set_property_string("bad\0key", "value"),
+        element.set_property_data("bad\0key", &[1]),
+        manager.set_property_u32("bad\0key", 1),
+        manager.set_property_string("bad\0key", "value"),
+        manager.set_property_data("bad\0key", &[1]),
+    ] {
+        assert!(matches!(result, Err(HidError::InvalidArgument(_))));
+    }
 }
 
 #[test]

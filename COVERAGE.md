@@ -61,7 +61,7 @@ Legend:
 | `IOHIDDeviceConformsTo` | ✅ implemented | Safe coverage lives in `hid::HidDevice / hid::device`; raw declaration available through `raw-ffi`. |
 | `IOHIDDeviceCopyMatchingElements` | ✅ implemented | Safe coverage lives in `hid::HidDevice / hid::device`; raw declaration available through `raw-ffi`. |
 | `IOHIDDeviceCopyValueMultiple` | ✅ implemented | Safe coverage lives in `hid::HidDevice / hid::device`; raw declaration available through `raw-ffi`. |
-| `IOHIDDeviceCopyValueMultipleWithCallback` | ✅ implemented | Safe coverage lives in `hid::HidDevice / hid::device`; raw declaration available through `raw-ffi`. |
+| `IOHIDDeviceCopyValueMultipleWithCallback` | 🟡 raw only | Raw declaration only; without a callback IOKit takes its synchronous path and ignores the timeout, so `HidDevice::copy_value_multiple` covers it. |
 | `IOHIDDeviceCreate` | ✅ implemented | Safe coverage lives in `hid::HidDevice / hid::device`; raw declaration available through `raw-ffi`. |
 | `IOHIDDeviceGetProperty` | ✅ implemented | Safe coverage lives in `hid::HidDevice / hid::device`; raw declaration available through `raw-ffi`. |
 | `IOHIDDeviceGetReport` | ✅ implemented | Safe coverage lives in `hid::HidDevice / hid::device`; raw declaration available through `raw-ffi`. |
@@ -69,7 +69,7 @@ Legend:
 | `IOHIDDeviceGetService` | ✅ implemented | Safe coverage lives in `hid::HidDevice / hid::device`; raw declaration available through `raw-ffi`. |
 | `IOHIDDeviceGetTypeID` | ✅ implemented | Safe coverage lives in `hid::HidDevice / hid::device`; raw declaration available through `raw-ffi`. |
 | `IOHIDDeviceGetValue` | ✅ implemented | Safe coverage lives in `hid::HidDevice / hid::device`; raw declaration available through `raw-ffi`. |
-| `IOHIDDeviceGetValueWithCallback` | ✅ implemented | `HidDevice::get_value_with_timeout`; IOKit documents the timeout as unused and the call as synchronous. |
+| `IOHIDDeviceGetValueWithCallback` | 🟡 raw only | Raw declaration only; the plug-in ignores the timeout and callback on every release and IOKit leaks its callback record on success. Use `HidDevice::get_value`. |
 | `IOHIDDeviceGetValueWithOptions` | ✅ implemented | Safe coverage lives in `hid::HidDevice / hid::device`; raw declaration available through `raw-ffi`. |
 | `IOHIDDeviceOpen` | ✅ implemented | Safe coverage lives in `hid::HidDevice / hid::device`; raw declaration available through `raw-ffi`. |
 | `IOHIDDeviceRegisterInputReportCallback` | ✅ implemented | `HidDevice::on_input_report`; registered on a private `IOHIDDevice` for the same service, with a buffer sized from `kIOHIDMaxInputReportSizeKey`. |
@@ -86,8 +86,8 @@ Legend:
 | `IOHIDDeviceSetReportWithCallback` | ✅ implemented | `HidDevice::set_report_with_timeout` sends through a private device and returns the completion status, or `HidError::Timeout`. macOS 13 and later; earlier releases never deliver the completion and get `HidError::Unsupported`. |
 | `IOHIDDeviceSetValue` | ✅ implemented | Safe coverage lives in `hid::HidDevice / hid::device`; raw declaration available through `raw-ffi`. |
 | `IOHIDDeviceSetValueMultiple` | ✅ implemented | Safe coverage lives in `hid::HidDevice / hid::device`; raw declaration available through `raw-ffi`. |
-| `IOHIDDeviceSetValueMultipleWithCallback` | ✅ implemented | Safe coverage lives in `hid::HidDevice / hid::device`; raw declaration available through `raw-ffi`. |
-| `IOHIDDeviceSetValueWithCallback` | ✅ implemented | `HidDevice::set_value_with_timeout`; IOKit documents the timeout as unused and the call as synchronous. |
+| `IOHIDDeviceSetValueMultipleWithCallback` | 🟡 raw only | Raw declaration only; without a callback IOKit takes its synchronous path and ignores the timeout, so `HidDevice::set_value_multiple` covers it. |
+| `IOHIDDeviceSetValueWithCallback` | 🟡 raw only | Raw declaration only; the plug-in ignores the timeout and callback on every release and IOKit leaks its callback record on success. Use `HidDevice::set_value`. |
 | `IOHIDDeviceUnscheduleFromRunLoop` | 🟡 internal | Used only when tearing down private devices. |
 
 ## Element
@@ -161,10 +161,10 @@ Legend:
 | `IOHIDTransactionGetTypeID` | ✅ implemented | Safe coverage lives in `hid::transaction`; raw declaration available through `raw-ffi`. |
 | `IOHIDTransactionGetValue` | ✅ implemented | Safe coverage lives in `hid::transaction`; raw declaration available through `raw-ffi`. |
 | `IOHIDTransactionRemoveElement` | ✅ implemented | Safe coverage lives in `hid::transaction`; raw declaration available through `raw-ffi`. |
-| `IOHIDTransactionScheduleWithRunLoop` | ✅ implemented | Safe coverage lives in `hid::transaction`; raw declaration available through `raw-ffi`. |
+| `IOHIDTransactionScheduleWithRunLoop` | 🟡 raw only | Raw declaration only; a transaction's run-loop source is its device's own IOKit source, so the safe scheduling methods were removed. |
 | `IOHIDTransactionSetDirection` | ✅ implemented | Safe coverage lives in `hid::transaction`; raw declaration available through `raw-ffi`. |
 | `IOHIDTransactionSetValue` | ✅ implemented | Safe coverage lives in `hid::transaction`; raw declaration available through `raw-ffi`. |
-| `IOHIDTransactionUnscheduleFromRunLoop` | ✅ implemented | Safe coverage lives in `hid::transaction`; raw declaration available through `raw-ffi`. |
+| `IOHIDTransactionUnscheduleFromRunLoop` | 🟡 raw only | Raw declaration only, for the same reason as `IOHIDTransactionScheduleWithRunLoop`. |
 
 ## Queue
 
@@ -176,7 +176,7 @@ Legend:
 | `IOHIDQueueCancel` | 🟡 unsafe | `unsafe fn HidQueue::cancel`, for the same reason as `IOHIDQueueActivate`. |
 | `IOHIDQueueContainsElement` | ✅ implemented | Safe coverage lives in `hid::queue`; raw declaration available through `raw-ffi`. |
 | `IOHIDQueueCopyNextValue` | ✅ implemented | Safe coverage lives in `hid::queue`; raw declaration available through `raw-ffi`. |
-| `IOHIDQueueCopyNextValueWithTimeout` | ✅ implemented | Safe coverage lives in `hid::queue`; raw declaration available through `raw-ffi`. |
+| `IOHIDQueueCopyNextValueWithTimeout` | 🟡 raw only | Raw declaration only; the plug-in ignores the timeout on every release. Use `HidQueue::on_value_available` and `HidQueue::copy_next_value`. |
 | `IOHIDQueueCreate` | ✅ implemented | Safe coverage lives in `hid::queue`; raw declaration available through `raw-ffi`. |
 | `IOHIDQueueGetDepth` | ✅ implemented | Safe coverage lives in `hid::queue`; raw declaration available through `raw-ffi`. |
 | `IOHIDQueueGetDevice` | ✅ implemented | `HidQueue::device` returns the retained device; `IOHIDQueueCreate` does not retain it. |

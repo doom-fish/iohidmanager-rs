@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Async streams could hang in `drop` right after subscribing, because a `CFRunLoopStop` sent before the stream's thread started running was lost. Streams no longer own threads.
 - The device streams turned an `IOHIDDeviceOpen` or Input Monitoring failure into a stream that silently closed. Subscribing now returns the error.
 - `HidElement` was a `Copy` handle around a borrowed element: `elements()` released the array it borrowed from, and `parent()` and `element()` returned +0 references. Using an element after its device went away read freed memory. Elements now retain the element and its device. Values, queues and transactions also keep their device alive.
-- `HidQueue::copy_next_value` and `copy_next_value_with_timeout` leaked one value per call. `copy_next_value_with_timeout` passed milliseconds where IOKit expects seconds.
+- `HidQueue::copy_next_value` leaked one value per call.
 - The `set_property_*` setters leaked the value when the key contained NUL, and converting a `CFString` used unchecked arithmetic.
 - Device report buffers are sized from `kIOHIDMaxInputReportSizeKey` (64 bytes if absent, at most 1 MiB) instead of a caller-supplied length.
 - README and `COVERAGE*.md` no longer describe the removed Swift bridge or claim safe wrappers for raw-only functions.
@@ -38,11 +38,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** `activate` and `cancel` on `HidManager`, `HidDevice` and `HidQueue` are `unsafe fn`. IOKit aborts unless a dispatch queue was set first, and only the raw `ffi` module can set one.
 - **Breaking:** `HidQueue` and `HidTransaction` no longer implement `Clone`; a clone shared one mutable IOKit object.
 - **Breaking:** `HidElement` is no longer `Copy`. `parent`, `children`, `attached` and `HidValue::element` return retained handles; `HidValue::from_integer` and `from_bytes` take `&HidElement`; and `HidElement::attach` returns `Result` and rejects elements of another device.
-- **Breaking:** `HidQueue::copy_next_value_with_timeout` takes a `Duration`.
 - **Breaking:** `HidManager`, `HidDevice`, `HidElement`, `HidValue`, `HidQueue` and `HidTransaction` are neither `Send` nor `Sync`. A device passed to a callback stays on the event-loop thread; send `HidDevice::id` to another thread and open the device there with `HidDevice::from_id`.
 - **Breaking:** the async streams deliver plain data. `InputValueEvent` holds a `HidDeviceId` and a `HidValueInfo`, `DeviceMatchingEvent` a `HidDeviceId` and a `HidDeviceInfo`, `DeviceRemovalEvent` and `InputReportEvent` a `HidDeviceId`, and `DeviceInputValueStream` yields `HidValueInfo`.
 - **Breaking:** `HidDevice::set_report_with_timeout` takes a `Duration` and waits for the device. It sends through a private `IOHIDDevice` for the same service, scheduled in a private run-loop mode on the calling thread, and returns the completion status or `HidError::Timeout`. The timeout must lie between 50 ms and 20 minutes. It needs macOS 13, because earlier releases never deliver the completion, and returns `HidError::Unsupported` before that. The private device is opened without seizing, so the call fails with `HidError::DeviceOpenFailed` while another client has seized the device.
 - **Breaking:** `HidTransaction::commit_with_timeout` takes a `Duration` and waits in the same way. It commits a copy of the transaction's elements and values on a private device, because a timed-out completion on the caller's own device could still arrive later and IOKit would then read the released transaction. It commits output transactions only and returns `HidError::InvalidArgument` for input ones, since IOKit cannot write the values back into the caller's transaction; use `commit` for those.
+- **Breaking:** `HidTransactionDirection` is `#[non_exhaustive]` and gains `Unknown(u32)`; `from_raw` no longer turns unknown values into `Input`.
 - The subscription types and async streams are `Send + Sync` without `unsafe impl`.
 - The crate's own Swift bridge is gone; it calls IOKit directly.
 - `rust-version` is 1.82. `apple-cf` is required at `>=0.11, <0.12`, `iokit` at `>=0.6, <0.7` and `doom-fish-utils` at `>=0.4.1, <0.5`.
@@ -59,6 +59,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Breaking:** `HidDevice::set_input_value_matching` and `set_input_value_matching_multiple`: a subscription's private device cannot see them. Pass the matching to `on_input_value` instead.
 - **Breaking:** `HidQueue::schedule_current_run_loop` and `unschedule_from_run_loop`: scheduling a queue twice aborts, and `on_value_available` schedules it on the event loop.
+- **Breaking:** `HidDevice::set_value_with_timeout`, `get_value_with_timeout`, `set_value_multiple_with_timeout` and `copy_value_multiple_with_timeout`. IOKit ignores their timeout on every release: the single-value calls are synchronous in the plug-in and leak an IOKit callback record on each success, and without a callback the multiple-value calls take IOKit's synchronous path. Use `set_value`, `get_value`, `set_value_multiple` and `copy_value_multiple`.
+- **Breaking:** `HidQueue::copy_next_value_with_timeout`. The IOKit plug-in ignores the timeout, so the call never waited. Wait with `on_value_available` and drain with `copy_next_value`.
+- **Breaking:** `HidTransaction::schedule_current_run_loop` and `unschedule_current_run_loop`. A transaction's run-loop source is its device's own IOKit source, so unscheduling a transaction for a device passed to a manager callback stopped that subscription's input, and no safe call completes through it any more.
 - **Breaking:** the Swift bridge stubs and their helpers: `keys::bridge_queue_enqueue_all`, `keys::bridge_standard_type_ansi`, `usage::bridge_generic_desktop_page`, `usage::bridge_keyboard_usage`, `usage::bridge_mouse_usage`, `event_system::bridge_keyboard_no_key_repeat`, `event_system::bridge_sensor_control_decimation`, `ServicePlugInUuid::bridge_bytes`, and the `iohidmanager_swift_*` raw declarations.
 
 ## [0.10.4] - 2026-06-06

@@ -7,12 +7,14 @@ use super::*;
 use crate::ffi_impl as ffi;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 /// Wraps `IOHIDTransactionDirectionType`.
 pub enum HidTransactionDirection {
     /// Mirrors `kIOHIDTransactionDirectionTypeInput`.
     Input,
     /// Mirrors `kIOHIDTransactionDirectionTypeOutput`.
     Output,
+    Unknown(ffi::IOHIDTransactionDirectionType),
 }
 
 impl HidTransactionDirection {
@@ -22,6 +24,7 @@ impl HidTransactionDirection {
         match self {
             Self::Input => ffi::kIOHIDTransactionDirectionTypeInput,
             Self::Output => ffi::kIOHIDTransactionDirectionTypeOutput,
+            Self::Unknown(raw) => raw,
         }
     }
 
@@ -29,8 +32,9 @@ impl HidTransactionDirection {
     /// Mirrors `IOHIDTransactionDirectionType`.
     pub const fn from_raw(raw: ffi::IOHIDTransactionDirectionType) -> Self {
         match raw {
+            ffi::kIOHIDTransactionDirectionTypeInput => Self::Input,
             ffi::kIOHIDTransactionDirectionTypeOutput => Self::Output,
-            _ => Self::Input,
+            other => Self::Unknown(other),
         }
     }
 }
@@ -135,30 +139,6 @@ impl HidTransaction {
     /// Wraps `IOHIDTransactionContainsElement`.
     pub fn contains_element(&self, element: &HidElement) -> bool {
         unsafe { ffi::IOHIDTransactionContainsElement(self.raw, element.raw) }
-    }
-
-    /// Wraps `IOHIDTransactionScheduleWithRunLoop` for the current run loop.
-    pub fn schedule_current_run_loop(&self) {
-        let run_loop = unsafe { ffi::CFRunLoopGetCurrent() };
-        unsafe {
-            ffi::IOHIDTransactionScheduleWithRunLoop(
-                self.raw,
-                run_loop,
-                ffi::kCFRunLoopDefaultMode,
-            );
-        }
-    }
-
-    /// Wraps `IOHIDTransactionUnscheduleFromRunLoop` for the current run loop.
-    pub fn unschedule_current_run_loop(&self) {
-        let run_loop = unsafe { ffi::CFRunLoopGetCurrent() };
-        unsafe {
-            ffi::IOHIDTransactionUnscheduleFromRunLoop(
-                self.raw,
-                run_loop,
-                ffi::kCFRunLoopDefaultMode,
-            );
-        }
     }
 
     /// Wraps `IOHIDTransactionSetValue`.

@@ -1,7 +1,6 @@
 use core::ffi::c_void;
 use core::ptr;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
-use std::time::Duration;
 
 use super::subscription::next_id;
 #[allow(clippy::wildcard_imports)]
@@ -251,19 +250,6 @@ impl HidQueue {
         )
     }
 
-    #[must_use]
-    /// Wraps `IOHIDQueueCopyNextValueWithTimeout`.
-    ///
-    /// Timeouts longer than `u32::MAX` milliseconds are clamped to that limit.
-    pub fn copy_next_value_with_timeout(&self, timeout: Duration) -> Option<HidValue> {
-        HidValue::from_raw_owned(
-            unsafe {
-                ffi::IOHIDQueueCopyNextValueWithTimeout(self.raw, queue_timeout_seconds(timeout))
-            },
-            Some(&self.device),
-        )
-    }
-
     /// Wraps `IOHIDQueueRegisterValueAvailableCallback`.
     pub fn on_value_available<F>(
         &self,
@@ -305,12 +291,6 @@ impl HidQueue {
     pub const fn as_ptr(&self) -> ffi::IOHIDQueueRef {
         self.raw
     }
-}
-
-pub(crate) fn queue_timeout_seconds(timeout: Duration) -> ffi::CFTimeInterval {
-    let millis = timeout.as_millis().min(u128::from(u32::MAX));
-    let millis = u32::try_from(millis).unwrap_or(u32::MAX);
-    f64::from(millis) / 1000.0
 }
 
 #[cfg(test)]
