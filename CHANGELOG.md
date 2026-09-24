@@ -1,5 +1,61 @@
 # Changelog
 
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.11.0] - Unreleased
+
+### Security
+
+- `HidManager::with_options` passed the manager-creation options to `IOHIDManagerOpen` as well. `USE_PERSISTENT_PROPERTIES` has the value of `kIOHIDOptionsTypeSeizeDevice`, so it seized every matched device and the rest of the system stopped receiving their input. Managers are now always opened with `kIOHIDOptionsTypeNone`.
+
+### Fixed
+
+- Use-after-free when a subscription was dropped from another thread or inside its own callback. Drop freed the context, closure and report buffer while IOKit could still call them. Subscriptions now give IOKit a doom-fish-utils `CallbackContext` and stop delivering as soon as they are dropped. They are torn down on the crate's event-loop thread, after any callback that is already running returns.
+- IOKit cannot reliably unregister device input-value, input-report and removal callbacks: its callback sets compare only the context, but hash the callback pointer too. The device plug-in also keeps copying reports into the last registered buffer, and queue callbacks cannot be unregistered at all. Each subscription therefore owns a private `IOHIDManager` or `IOHIDDevice`, which is unscheduled and closed before the context and buffer are freed. A queue subscription replaces its context with NULL on teardown.
+- Dropping one subscription unscheduled and closed the whole device or manager, which killed every other subscription on it. A second subscription on the same manager hit IOKit's already-scheduled assertion and aborted with SIGTRAP. That is the crash the async docs had blamed on missing device matching. Subscriptions no longer share IOKit objects.
+- Async streams could hang in `drop` right after subscribing, because a `CFRunLoopStop` sent before the stream's thread started running was lost. Streams no longer own threads.
+- The device streams turned an `IOHIDDeviceOpen` or Input Monitoring failure into a stream that silently closed. Subscribing now returns the error.
+- `HidElement` was a `Copy` handle around a borrowed element: `elements()` released the array it borrowed from, and `parent()` and `element()` returned +0 references. Using an element after its device went away read freed memory. Elements now retain the element and its device. Values, queues and transactions also keep their device alive.
+- `HidQueue::copy_next_value` and `copy_next_value_with_timeout` leaked one value per call. `copy_next_value_with_timeout` passed milliseconds where IOKit expects seconds.
+- The `set_property_*` setters leaked the value when the key contained NUL, and converting a `CFString` used unchecked arithmetic.
+- Device report buffers are sized from `kIOHIDMaxInputReportSizeKey` (64 bytes if absent, at most 1 MiB) instead of a caller-supplied length.
+- README and `COVERAGE*.md` no longer describe the removed Swift bridge or claim safe wrappers for raw-only functions.
+
+### Changed
+
+- **Breaking:** callbacks run on a background event-loop thread owned by the crate, not on the run loop of the thread that subscribed. No caller run loop is needed.
+- **Breaking:** manager subscriptions (`HidManager::on_*` and the manager streams) use a private manager built from the device and input-value matching set on the `HidManager` when you subscribe. Later matching changes do not affect live subscriptions. Without `set_device_matching` they return `HidError::InvalidArgument`.
+- **Breaking:** device subscriptions use a private device for the same service and no longer open or close the caller's device. `on_removal` does not open a device at all.
+- **Breaking:** `HidDevice::on_input_report` and `on_input_report_with_timestamp` no longer take a `max_report_length`.
+- **Breaking:** `HidDevice::on_input_value` takes the element matching as `&[ElementMatch]`, and so does `DeviceInputValueStream::subscribe`.
+- **Breaking:** `HidQueue::on_value_available` returns `HidError::InvalidArgument` while another subscription on the same queue is alive.
+- **Breaking:** every `async_api` `subscribe` returns `Result<Self, HidError>`, and a capacity of zero is `InvalidArgument` instead of a panic.
+- **Breaking:** `activate` and `cancel` on `HidManager`, `HidDevice` and `HidQueue` are `unsafe fn`. IOKit aborts unless a dispatch queue was set first, and only the raw `ffi` module can set one.
+- **Breaking:** `HidQueue` and `HidTransaction` no longer implement `Clone`; a clone shared one mutable IOKit object.
+- **Breaking:** `HidElement` is no longer `Copy`. `parent`, `children`, `attached` and `HidValue::element` return retained handles; `HidValue::from_integer` and `from_bytes` take `&HidElement`; and `HidElement::attach` returns `Result` and rejects elements of another device.
+- **Breaking:** `HidQueue::copy_next_value_with_timeout` takes a `Duration`.
+- **Breaking:** `HidManager`, `HidDevice`, `HidElement`, `HidQueue` and `HidTransaction` are no longer `Sync`, because their setters take `&self`.
+- The subscription types and async streams are `Send + Sync` without `unsafe impl`.
+- The crate's own Swift bridge is gone; it calls IOKit directly.
+- `rust-version` is 1.82. `apple-cf` is required at `>=0.11, <0.12`, `iokit` at `>=0.6, <0.7` and `doom-fish-utils` at `>=0.4.1, <0.5`.
+
+### Added
+
+- `ffi::kIOHIDMaxInputReportSizeKey`.
+
+### Removed
+
+- **Breaking:** `HidDevice::set_input_value_matching` and `set_input_value_matching_multiple`: a subscription's private device cannot see them. Pass the matching to `on_input_value` instead.
+- **Breaking:** `HidQueue::schedule_current_run_loop` and `unschedule_from_run_loop`: scheduling a queue twice aborts, and `on_value_available` schedules it on the event loop.
+- **Breaking:** the Swift bridge stubs and their helpers: `keys::bridge_queue_enqueue_all`, `keys::bridge_standard_type_ansi`, `usage::bridge_generic_desktop_page`, `usage::bridge_keyboard_usage`, `usage::bridge_mouse_usage`, `event_system::bridge_keyboard_no_key_repeat`, `event_system::bridge_sensor_control_decimation`, `ServicePlugInUuid::bridge_bytes`, and the `iohidmanager_swift_*` raw declarations.
+
+## [0.10.4] - 2026-06-06
+
+- Contain panics from user callbacks in every callback trampoline instead of unwinding across the FFI boundary, and drop the empty Swift bridge header.
+
 ## [0.10.3] - 2026-05-20
 
 - Widen `doom-fish-utils` dependency bound to `<0.4` so the 0.3.x SPSC-ring release resolves cleanly. No source changes.

@@ -2,11 +2,18 @@
 
 Safe Rust bindings for Apple's [IOKit HID](https://developer.apple.com/documentation/iokit/iohidmanager_h) subsystem on macOS — enumerate connected mice, keyboards, gamepads, and other HID devices.
 
-> **Status:** actively developed. The crate delivers every callback on a background event-loop thread owned by the crate, gives each subscription its own `IOKit` manager or device object, and makes subscribing fallible instead of hiding open and permission failures.
+> **Status:** actively developed. v0.11 delivers every callback on a background event-loop thread owned by the crate, gives each subscription its own `IOKit` manager or device object, and makes subscribing fallible instead of hiding open and permission failures.
+
+## Installation
+
+```toml
+[dependencies]
+iohidmanager = "0.11"
+```
 
 ## Requirements
 
-- macOS. The crate calls `IOKit` directly; there is no Swift bridge.
+- macOS. The crate calls `IOKit` directly; its `iokit` dependency builds a small Swift bridge, so building needs the Xcode command-line tools.
 - Reading input from keyboards and keypads needs the **Input Monitoring** permission (System Settings → Privacy & Security). Without it, opening those devices fails with `kIOReturnNotPermitted`, and subscriptions that need an open device return `HidError::DeviceOpenFailed` or `HidError::ManagerOpenFailed`. Enumerating devices and watching them arrive or leave works without it.
 
 ## Quick start
