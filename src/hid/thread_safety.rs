@@ -1,3 +1,4 @@
+use super::completion::PrivateDevice;
 use super::{
     DeviceRemovalSubscription, HidDevice, HidDeviceId, HidDeviceInfo, HidElement, HidInputReport,
     HidManager, HidQueue, HidTransaction, HidValue, HidValueInfo, ManagerDeviceSubscription,
@@ -33,6 +34,7 @@ const _: fn() = || {
     <HidQueue as AmbiguousIfSync<_>>::check();
     <HidTransaction as AmbiguousIfSend<_>>::check();
     <HidTransaction as AmbiguousIfSync<_>>::check();
+    <PrivateDevice as AmbiguousIfSend<_>>::check();
 };
 
 const _: () = {

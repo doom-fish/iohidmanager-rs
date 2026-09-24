@@ -1,4 +1,6 @@
 use core::ptr;
+use std::collections::HashMap;
+use std::time::Duration;
 
 #[allow(clippy::wildcard_imports)]
 use super::*;
@@ -184,18 +186,94 @@ impl HidTransaction {
     }
 
     /// Wraps `IOHIDTransactionCommitWithCallback`.
-    pub fn commit_with_timeout(&self, timeout_ms: f64) -> Result<(), HidError> {
-        let status = unsafe {
-            ffi::IOHIDTransactionCommitWithCallback(self.raw, timeout_ms, None, ptr::null_mut())
-        };
-        if status == ffi::kIOReturnSuccess {
-            Ok(())
-        } else {
-            Err(HidError::IoReturn(
-                "IOHIDTransactionCommitWithCallback",
-                status,
-            ))
+    pub fn commit_with_timeout(&self, timeout: Duration) -> Result<(), HidError> {
+        if self.direction() != HidTransactionDirection::Output {
+            return Err(HidError::InvalidArgument(
+                "commit_with_timeout commits output transactions; use commit for input".to_owned(),
+            ));
         }
+        let timeout_ms = completion::request_timeout_ms(timeout)?;
+        let service = self.device.registered_service()?;
+        completion::complete_on_private_device(
+            COMMIT_WITH_CALLBACK,
+            service,
+            timeout,
+            |device, context| {
+                let mirror = self.mirror_onto(device)?;
+                let status = unsafe {
+                    ffi::IOHIDTransactionCommitWithCallback(
+                        mirror.get().cast_mut(),
+                        timeout_ms,
+                        Some(completion::commit_completed),
+                        context,
+                    )
+                };
+                if status == ffi::kIOReturnSuccess {
+                    Ok(mirror)
+                } else {
+                    Err(HidError::IoReturn(COMMIT_WITH_CALLBACK, status))
+                }
+            },
+        )
+    }
+
+    pub(super) fn mirror_onto(&self, device: ffi::IOHIDDeviceRef) -> Result<Retained, HidError> {
+        let mirror = Retained::from_create(
+            unsafe {
+                ffi::IOHIDTransactionCreate(
+                    ffi::kCFAllocatorDefault,
+                    device,
+                    ffi::kIOHIDTransactionDirectionTypeOutput,
+                    ffi::kIOHIDTransactionOptionsNone,
+                )
+            }
+            .cast_const(),
+        )
+        .ok_or(HidError::OperationFailed("IOHIDTransactionCreate"))?;
+        let targets: HashMap<IOHIDElementCookie, HidElement> = elements_from_array(
+            unsafe {
+                ffi::IOHIDDeviceCopyMatchingElements(
+                    device,
+                    ptr::null(),
+                    ffi::kIOHIDOptionsTypeNone,
+                )
+            },
+            true,
+            None,
+        )
+        .into_iter()
+        .map(|element| (element.cookie(), element))
+        .collect();
+        for element in self.device.elements() {
+            if !self.contains_element(&element) {
+                continue;
+            }
+            let target = targets
+                .get(&element.cookie())
+                .ok_or(HidError::OperationFailed("IOHIDDeviceCopyMatchingElements"))?;
+            unsafe { ffi::IOHIDTransactionAddElement(mirror.get().cast_mut(), target.raw) };
+            for options in [
+                ffi::kIOHIDTransactionOptionDefaultOutputValue,
+                ffi::kIOHIDTransactionOptionsNone,
+            ] {
+                let value =
+                    unsafe { ffi::IOHIDTransactionGetValue(self.raw, element.raw, options) };
+                if value.is_null() {
+                    continue;
+                }
+                let copy = Retained::from_create(copy_value_to(value, target.raw))
+                    .ok_or(HidError::OperationFailed("IOHIDValueCreateWithBytes"))?;
+                unsafe {
+                    ffi::IOHIDTransactionSetValue(
+                        mirror.get().cast_mut(),
+                        target.raw,
+                        copy.get(),
+                        options,
+                    );
+                }
+            }
+        }
+        Ok(mirror)
     }
 
     /// Wraps `IOHIDTransactionClear`.
@@ -209,3 +287,5 @@ impl HidTransaction {
         self.raw
     }
 }
+
+const COMMIT_WITH_CALLBACK: &str = "IOHIDTransactionCommitWithCallback";

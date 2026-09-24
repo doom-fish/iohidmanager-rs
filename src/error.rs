@@ -18,6 +18,8 @@ pub enum HidError {
     OperationFailed(&'static str),
     /// A Rust-side argument could not be converted for the underlying framework call.
     InvalidArgument(String),
+    Timeout(&'static str),
+    Unsupported(&'static str),
 }
 
 impl fmt::Display for HidError {
@@ -35,6 +37,10 @@ impl fmt::Display for HidError {
             }
             Self::OperationFailed(operation) => write!(f, "{operation} failed"),
             Self::InvalidArgument(message) => write!(f, "invalid argument: {message}"),
+            Self::Timeout(operation) => write!(f, "{operation} did not complete in time"),
+            Self::Unsupported(operation) => {
+                write!(f, "{operation} is not supported on this macOS version")
+            }
         }
     }
 }

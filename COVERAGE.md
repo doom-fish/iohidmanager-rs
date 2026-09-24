@@ -15,6 +15,7 @@ Legend:
 - `tests/api_coverage.rs` checks that every C function in the installed SDK's manager, device, element, value, transaction and queue headers has a raw declaration; that is raw-FFI coverage, not safe coverage. The rows below say which functions also have a safe wrapper.
 - Every subscription (`on_*`, `async_api` streams) opens a private `IOHIDManager` or `IOHIDDevice` scheduled on the crate's event-loop thread; teardown unschedules and closes it there before the callback context is released.
 - The handle types (`HidManager`, `HidDevice`, `HidElement`, `HidValue`, `HidQueue`, `HidTransaction`) are neither `Send` nor `Sync`, because IOKit does not lock the objects they wrap on macOS 12 and earlier (and never locks elements, queues or transactions). Compile-time assertions in `src/hid/thread_safety.rs` keep it that way.
+- `HidDevice::set_report_with_timeout` and `HidTransaction::commit_with_timeout` complete on a private `IOHIDDevice` scheduled in a private run-loop mode on the calling thread and return the device's completion status; they need macOS 13, the first release that delivers these completions.
 - There is no Swift bridge; the stub bridge was removed in 0.11.
 - Not covered: the `CoreHID` framework (macOS 15).
 - Deferred: `IOHIDDevicePlugIn.h` COM-style vtable structs are not surfaced as safe Rust types; UUID discovery helpers are provided instead.
@@ -75,19 +76,19 @@ Legend:
 | `IOHIDDeviceRegisterInputReportWithTimeStampCallback` | ✅ implemented | `HidDevice::on_input_report_with_timestamp`; private device, buffer sized from `kIOHIDMaxInputReportSizeKey`. |
 | `IOHIDDeviceRegisterInputValueCallback` | ✅ implemented | `HidDevice::on_input_value`; private device on the crate event loop. |
 | `IOHIDDeviceRegisterRemovalCallback` | ✅ implemented | `HidDevice::on_removal`; private device on the crate event loop, not opened. |
-| `IOHIDDeviceScheduleWithRunLoop` | 🟡 internal | Used only by device subscriptions on their private devices; there is no public scheduling call. |
+| `IOHIDDeviceScheduleWithRunLoop` | 🟡 internal | Used only on private devices: by device subscriptions on the crate event loop, and by `set_report_with_timeout` and `commit_with_timeout` in a private run-loop mode on the calling thread. There is no public scheduling call. |
 | `IOHIDDeviceSetCancelHandler` | 🟡 raw only | Raw declaration only (takes a block). |
 | `IOHIDDeviceSetDispatchQueue` | 🟡 raw only | Raw declaration only. |
 | `IOHIDDeviceSetInputValueMatching` | 🟡 raw only | Raw declaration only; `HidDevice::on_input_value` takes the element matches and applies them with `IOHIDDeviceSetInputValueMatchingMultiple`. |
 | `IOHIDDeviceSetInputValueMatchingMultiple` | ✅ implemented | Applied to the private device of `HidDevice::on_input_value(matching, ..)`. |
 | `IOHIDDeviceSetProperty` | ✅ implemented | Safe coverage lives in `hid::HidDevice / hid::device`; raw declaration available through `raw-ffi`. |
 | `IOHIDDeviceSetReport` | ✅ implemented | Safe coverage lives in `hid::HidDevice / hid::device`; raw declaration available through `raw-ffi`. |
-| `IOHIDDeviceSetReportWithCallback` | ✅ implemented | `HidDevice::set_report_with_timeout`. IOKit sends the report asynchronously, so the result only says whether it was queued. |
+| `IOHIDDeviceSetReportWithCallback` | ✅ implemented | `HidDevice::set_report_with_timeout` sends through a private device and returns the completion status, or `HidError::Timeout`. macOS 13 and later; earlier releases never deliver the completion and get `HidError::Unsupported`. |
 | `IOHIDDeviceSetValue` | ✅ implemented | Safe coverage lives in `hid::HidDevice / hid::device`; raw declaration available through `raw-ffi`. |
 | `IOHIDDeviceSetValueMultiple` | ✅ implemented | Safe coverage lives in `hid::HidDevice / hid::device`; raw declaration available through `raw-ffi`. |
 | `IOHIDDeviceSetValueMultipleWithCallback` | ✅ implemented | Safe coverage lives in `hid::HidDevice / hid::device`; raw declaration available through `raw-ffi`. |
 | `IOHIDDeviceSetValueWithCallback` | ✅ implemented | `HidDevice::set_value_with_timeout`; IOKit documents the timeout as unused and the call as synchronous. |
-| `IOHIDDeviceUnscheduleFromRunLoop` | 🟡 internal | Used only by device subscription teardown. |
+| `IOHIDDeviceUnscheduleFromRunLoop` | 🟡 internal | Used only when tearing down private devices. |
 
 ## Element
 
@@ -152,7 +153,7 @@ Legend:
 | `IOHIDTransactionAddElement` | ✅ implemented | Safe coverage lives in `hid::transaction`; raw declaration available through `raw-ffi`. |
 | `IOHIDTransactionClear` | ✅ implemented | Safe coverage lives in `hid::transaction`; raw declaration available through `raw-ffi`. |
 | `IOHIDTransactionCommit` | ✅ implemented | Safe coverage lives in `hid::transaction`; raw declaration available through `raw-ffi`. |
-| `IOHIDTransactionCommitWithCallback` | ✅ implemented | `HidTransaction::commit_with_timeout`. IOKit commits asynchronously, so the result only says whether the commit was queued. |
+| `IOHIDTransactionCommitWithCallback` | ✅ implemented | `HidTransaction::commit_with_timeout` commits a copy of an output transaction on a private device and returns the completion status, or `HidError::Timeout`. macOS 13 and later; earlier releases ignore the timeout and callback, so the call returns `HidError::Unsupported` there. Input transactions return `HidError::InvalidArgument`. |
 | `IOHIDTransactionContainsElement` | ✅ implemented | Safe coverage lives in `hid::transaction`; raw declaration available through `raw-ffi`. |
 | `IOHIDTransactionCreate` | ✅ implemented | Safe coverage lives in `hid::transaction`; raw declaration available through `raw-ffi`. |
 | `IOHIDTransactionGetDevice` | ✅ implemented | `HidTransaction::device` returns the retained device. |

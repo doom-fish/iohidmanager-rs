@@ -1,4 +1,6 @@
+use core::ffi::c_void;
 use core::ptr;
+use std::time::Duration;
 
 #[allow(clippy::wildcard_imports)]
 use super::*;
@@ -322,31 +324,56 @@ impl HidDevice {
         report_type: HidReportType,
         report_id: u32,
         report: &[u8],
-        timeout_ms: f64,
+        timeout: Duration,
     ) -> Result<(), HidError> {
-        let report_id = ffi::CFIndex::from(report_id);
-        let report_length = ffi::CFIndex::try_from(report.len()).map_err(|_| {
-            HidError::InvalidArgument("report length does not fit CFIndex".to_owned())
-        })?;
-        let status = unsafe {
-            ffi::IOHIDDeviceSetReportWithCallback(
-                self.raw,
-                report_type.as_raw(),
-                report_id,
-                report.as_ptr(),
-                report_length,
-                timeout_ms,
-                None,
-                ptr::null_mut(),
-            )
-        };
-        if status == ffi::kIOReturnSuccess {
-            Ok(())
-        } else {
-            Err(HidError::IoReturn(
-                "IOHIDDeviceSetReportWithCallback",
-                status,
-            ))
-        }
+        let timeout_ms = completion::request_timeout_ms(timeout)?;
+        let service = self.registered_service()?;
+        let report = report.to_vec();
+        completion::complete_on_private_device(
+            SET_REPORT_WITH_CALLBACK,
+            service,
+            timeout,
+            |device, context| unsafe {
+                send_report_with_callback(
+                    device,
+                    report_type,
+                    report_id,
+                    report,
+                    timeout_ms,
+                    context,
+                )
+            },
+        )
+    }
+}
+
+const SET_REPORT_WITH_CALLBACK: &str = "IOHIDDeviceSetReportWithCallback";
+
+pub(super) unsafe fn send_report_with_callback(
+    device: ffi::IOHIDDeviceRef,
+    report_type: HidReportType,
+    report_id: u32,
+    report: Vec<u8>,
+    timeout_ms: f64,
+    context: *mut c_void,
+) -> Result<Vec<u8>, HidError> {
+    let report_length = ffi::CFIndex::try_from(report.len())
+        .map_err(|_| HidError::InvalidArgument("report length does not fit CFIndex".to_owned()))?;
+    let status = unsafe {
+        ffi::IOHIDDeviceSetReportWithCallback(
+            device,
+            report_type.as_raw(),
+            ffi::CFIndex::from(report_id),
+            report.as_ptr(),
+            report_length,
+            timeout_ms,
+            Some(completion::report_completed),
+            context,
+        )
+    };
+    if status == ffi::kIOReturnSuccess {
+        Ok(report)
+    } else {
+        Err(HidError::IoReturn(SET_REPORT_WITH_CALLBACK, status))
     }
 }

@@ -397,6 +397,20 @@ fn value_and_report_subscriptions_use_their_own_device() {
     event_loop::flush();
 }
 
+#[allow(clippy::cast_possible_wrap)]
+const NOT_OPEN: ffi::IOReturn = 0xe000_02cd_u32 as ffi::IOReturn;
+
+fn first_device_without_keyboards() -> Option<HidDevice> {
+    without_keyboards(manager_matching_all().live_devices())
+        .into_iter()
+        .next()
+}
+
+fn private_mode_is_empty(mode: ffi::CFStringRef) -> bool {
+    let result = unsafe { apple_cf::raw::CFRunLoopRunInMode(mode, 0.01, 1) };
+    u32::try_from(result).ok() == Some(apple_cf::raw::kCFRunLoopRunFinished)
+}
+
 #[test]
 fn a_device_id_opens_the_same_service_again() {
     let Some(device) = manager_matching_all().live_devices().into_iter().next() else {
@@ -439,4 +453,148 @@ fn value_info_copies_the_element_identity_and_payload() {
             bytes: vec![7],
         }
     );
+}
+
+#[test]
+fn a_private_device_is_scheduled_only_in_the_private_mode_of_this_thread() {
+    let Some(device) = first_device_without_keyboards() else {
+        return;
+    };
+    let mode = completion::private_mode().expect("private mode");
+    let service = device.registered_service().expect("service");
+    let mut private = completion::PrivateDevice::create(service).expect("private device");
+    assert_ne!(private.raw(), device.as_ptr());
+    assert!(private_mode_is_empty(mode));
+    private.schedule(mode);
+    assert!(!private_mode_is_empty(mode));
+    private.unschedule();
+    assert!(private_mode_is_empty(mode));
+}
+
+#[test]
+fn a_report_on_an_unopened_private_device_is_rejected_before_it_is_sent() {
+    let Some(device) = first_device_without_keyboards() else {
+        return;
+    };
+    let mode = completion::private_mode().expect("private mode");
+    let service = device.registered_service().expect("service");
+    let mut private = completion::PrivateDevice::create(service).expect("private device");
+    private.schedule(mode);
+    let context = CallbackContext::new(completion::Completion::default());
+    let foreign = ForeignRef::new(&context);
+    let sent = unsafe {
+        device::send_report_with_callback(
+            private.raw(),
+            HidReportType::Output,
+            0,
+            vec![0],
+            1000.0,
+            foreign.as_ptr(),
+        )
+    };
+    private.unschedule();
+    drop(private);
+    assert_eq!(
+        sent,
+        Err(HidError::IoReturn(
+            "IOHIDDeviceSetReportWithCallback",
+            NOT_OPEN
+        ))
+    );
+    assert_eq!(context.get().status(), None);
+}
+
+#[test]
+fn commit_with_timeout_rejects_input_transactions_and_bad_timeouts_up_front() {
+    let Some(device) = first_device_without_keyboards() else {
+        return;
+    };
+    let input = HidTransaction::new(&device, HidTransactionDirection::Input).expect("input");
+    assert!(matches!(
+        input.commit_with_timeout(Duration::from_secs(1)),
+        Err(HidError::InvalidArgument(_))
+    ));
+    let output = HidTransaction::new(&device, HidTransactionDirection::Output).expect("output");
+    for timeout in [Duration::from_millis(10), Duration::from_secs(3600)] {
+        assert!(matches!(
+            output.commit_with_timeout(timeout),
+            Err(HidError::InvalidArgument(_))
+        ));
+    }
+}
+
+#[test]
+fn an_empty_output_commit_fails_on_the_private_device_without_waiting() {
+    let Some(device) = first_device_without_keyboards() else {
+        return;
+    };
+    let transaction =
+        HidTransaction::new(&device, HidTransactionDirection::Output).expect("transaction");
+    let started = Instant::now();
+    match transaction.commit_with_timeout(Duration::from_secs(2)) {
+        Err(HidError::IoReturn("IOHIDTransactionCommitWithCallback", _)) => {
+            assert!(started.elapsed() < Duration::from_secs(2));
+        }
+        Err(HidError::DeviceOpenFailed(_) | HidError::Unsupported(_)) => {}
+        other => panic!("unexpected commit result: {other:?}"),
+    }
+    let mode = completion::private_mode().expect("private mode");
+    assert!(private_mode_is_empty(mode));
+}
+
+#[test]
+fn the_commit_mirror_copies_elements_and_values_onto_the_private_device() {
+    let found = without_keyboards(manager_matching_all().live_devices())
+        .into_iter()
+        .find_map(|device| {
+            let element = device.elements().into_iter().find(|element| {
+                matches!(
+                    element.element_kind(),
+                    HidElementType::Output | HidElementType::Feature
+                ) && element.report_size_bits() > 0
+            })?;
+            Some((device, element))
+        });
+    let Some((device, element)) = found else {
+        return;
+    };
+    let transaction =
+        HidTransaction::new(&device, HidTransactionDirection::Output).expect("transaction");
+    transaction.add_element(&element);
+    let value = HidValue::from_integer(&element, 5, 1).expect("value");
+    transaction.set_value(&element, &value, 0);
+
+    let service = device.registered_service().expect("service");
+    let private = completion::PrivateDevice::create(service).expect("private device");
+    let mirror = transaction.mirror_onto(private.raw()).expect("mirror");
+    let targets = elements_from_array(
+        unsafe {
+            ffi::IOHIDDeviceCopyMatchingElements(
+                private.raw(),
+                ptr::null(),
+                ffi::kIOHIDOptionsTypeNone,
+            )
+        },
+        true,
+        None,
+    );
+    let target = targets
+        .iter()
+        .find(|target| target.cookie() == element.cookie())
+        .expect("target element");
+    assert_ne!(target.as_ptr(), element.as_ptr());
+    assert_eq!(
+        unsafe { ffi::IOHIDElementGetDevice(target.as_ptr()) },
+        private.raw()
+    );
+    let mirrored = mirror.get().cast_mut();
+    assert!(unsafe { ffi::IOHIDTransactionContainsElement(mirrored, target.as_ptr()) });
+    let copy = unsafe { ffi::IOHIDTransactionGetValue(mirrored, target.as_ptr(), 0) };
+    assert!(!copy.is_null());
+    assert_eq!(unsafe { ffi::IOHIDValueGetElement(copy) }, target.as_ptr());
+    assert_eq!(unsafe { ffi::IOHIDValueGetIntegerValue(copy) }, 1);
+    assert_eq!(unsafe { ffi::IOHIDValueGetTimeStamp(copy) }, 5);
+    drop(mirror);
+    drop(targets);
+    drop(private);
 }

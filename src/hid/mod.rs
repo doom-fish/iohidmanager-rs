@@ -13,6 +13,7 @@ use doom_fish_utils::panic_safe::catch_user_panic;
 use event_loop::Callout;
 use subscription::{ForeignRef, Registration, ReportBuffer, Retained, Teardown};
 
+mod completion;
 /// Device helpers wrapping `IOHIDDevice*` APIs.
 pub mod device;
 /// Element helpers wrapping `IOHIDElement*` APIs.
@@ -1896,6 +1897,10 @@ pub(crate) fn clone_value_ref(
     if element.is_null() {
         return None;
     }
+    HidValue::from_raw_owned(copy_value_to(raw, element), device)
+}
+
+fn copy_value_to(raw: ffi::IOHIDValueRef, element: ffi::IOHIDElementRef) -> ffi::IOHIDValueRef {
     let timestamp = unsafe { ffi::IOHIDValueGetTimeStamp(raw) };
     let length = unsafe { ffi::IOHIDValueGetLength(raw) };
     if length > 0 {
@@ -1911,15 +1916,14 @@ pub(crate) fn clone_value_ref(
                 )
             };
             if !copied.is_null() {
-                return HidValue::from_raw_owned(copied, device);
+                return copied;
             }
         }
     }
     let integer = unsafe { ffi::IOHIDValueGetIntegerValue(raw) };
-    let copied = unsafe {
+    unsafe {
         ffi::IOHIDValueCreateWithIntegerValue(ffi::kCFAllocatorDefault, element, timestamp, integer)
-    };
-    HidValue::from_raw_owned(copied, device)
+    }
 }
 
 fn build_cf_dictionary(entries: &[(String, MatchValue)]) -> Result<ffi::CFDictionaryRef, HidError> {

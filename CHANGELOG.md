@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Device report buffers are sized from `kIOHIDMaxInputReportSizeKey` (64 bytes if absent, at most 1 MiB) instead of a caller-supplied length.
 - README and `COVERAGE*.md` no longer describe the removed Swift bridge or claim safe wrappers for raw-only functions.
 - Data races inside IOKit from safe code. `HidManager`, `HidDevice`, `HidElement`, `HidQueue` and `HidTransaction` were `Send`, `HidValue` was `Send + Sync`, and devices, elements and values can be cloned, so two threads could use one IOKit object at once. IOKit does not lock these objects: `IOHIDDevice` and its plug-in take no locks through macOS 12, `IOHIDManager` locks only its device set there, and `IOHIDElement`, `IOHIDQueue` and `IOHIDTransaction` never lock, while calls such as `IOHIDDeviceGetProperty` and `IOHIDDeviceCopyMatchingElements` update unlocked dictionaries and sets. The crate supports macOS 10.15, so these releases are in range. The handles now stay on the thread that created them, and compile-time assertions check that they are neither `Send` nor `Sync` and that subscriptions, streams and their events are `Send + Sync`.
+- `HidDevice::set_report_with_timeout` returned `Ok` as soon as IOKit had queued the report, before the device had answered, and nothing ever collected the completion. `HidTransaction::commit_with_timeout` did the same from macOS 13; earlier releases ignore its timeout and commit synchronously. Both now return the completion status. The old `set_report_with_timeout` also passed milliseconds where macOS 12 and earlier expect seconds.
 
 ### Changed
 
@@ -40,6 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** `HidQueue::copy_next_value_with_timeout` takes a `Duration`.
 - **Breaking:** `HidManager`, `HidDevice`, `HidElement`, `HidValue`, `HidQueue` and `HidTransaction` are neither `Send` nor `Sync`. A device passed to a callback stays on the event-loop thread; send `HidDevice::id` to another thread and open the device there with `HidDevice::from_id`.
 - **Breaking:** the async streams deliver plain data. `InputValueEvent` holds a `HidDeviceId` and a `HidValueInfo`, `DeviceMatchingEvent` a `HidDeviceId` and a `HidDeviceInfo`, `DeviceRemovalEvent` and `InputReportEvent` a `HidDeviceId`, and `DeviceInputValueStream` yields `HidValueInfo`.
+- **Breaking:** `HidDevice::set_report_with_timeout` takes a `Duration` and waits for the device. It sends through a private `IOHIDDevice` for the same service, scheduled in a private run-loop mode on the calling thread, and returns the completion status or `HidError::Timeout`. The timeout must lie between 50 ms and 20 minutes. It needs macOS 13, because earlier releases never deliver the completion, and returns `HidError::Unsupported` before that. The private device is opened without seizing, so the call fails with `HidError::DeviceOpenFailed` while another client has seized the device.
+- **Breaking:** `HidTransaction::commit_with_timeout` takes a `Duration` and waits in the same way. It commits a copy of the transaction's elements and values on a private device, because a timed-out completion on the caller's own device could still arrive later and IOKit would then read the released transaction. It commits output transactions only and returns `HidError::InvalidArgument` for input ones, since IOKit cannot write the values back into the caller's transaction; use `commit` for those.
 - The subscription types and async streams are `Send + Sync` without `unsafe impl`.
 - The crate's own Swift bridge is gone; it calls IOKit directly.
 - `rust-version` is 1.82. `apple-cf` is required at `>=0.11, <0.12`, `iokit` at `>=0.6, <0.7` and `doom-fish-utils` at `>=0.4.1, <0.5`.
@@ -49,7 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ffi::kIOHIDMaxInputReportSizeKey`.
 - `HidDeviceId`, `HidDevice::id` and `HidDevice::from_id`, which look a device up by its registry entry ID.
 - `HidValueInfo` and `HidValue::info`, a plain-data copy of a value.
-- `ffi::kIOMainPortDefault`, `ffi::mach_port_t`, and raw `IORegistryEntryGetRegistryEntryID`, `IORegistryEntryIDMatching`, `IOServiceGetMatchingService` and `IOObjectRelease`.
+- `HidError::Timeout` and `HidError::Unsupported`.
+- `ffi::kIOReturnTimeout`, `ffi::kIOMainPortDefault`, `ffi::mach_port_t`, and raw `IORegistryEntryGetRegistryEntryID`, `IORegistryEntryIDMatching`, `IOServiceGetMatchingService` and `IOObjectRelease`.
 
 ### Removed
 

@@ -47,6 +47,8 @@ pub type IOHIDStandardType = u32;
 pub type HIDReportCommandType = u32;
 
 pub const kIOReturnSuccess: IOReturn = 0;
+#[allow(clippy::cast_possible_wrap)]
+pub const kIOReturnTimeout: IOReturn = 0xe000_02d6_u32 as IOReturn;
 pub const kIOMainPortDefault: mach_port_t = 0;
 
 pub const kCFNumberSInt32Type: i64 = 3;

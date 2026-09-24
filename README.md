@@ -13,7 +13,7 @@ iohidmanager = "0.11"
 
 ## Requirements
 
-- macOS 10.15 or later, the minimum of the `iokit` dependency. The crate calls `IOKit` directly; its `iokit` dependency builds a small Swift bridge, so building needs the Xcode command-line tools.
+- macOS 10.15 or later, the minimum of the `iokit` dependency. The crate calls `IOKit` directly; its `iokit` dependency builds a small Swift bridge, so building needs the Xcode command-line tools. `HidDevice::set_report_with_timeout` and `HidTransaction::commit_with_timeout` need macOS 13 and return `HidError::Unsupported` on earlier releases.
 - Reading input from keyboards and keypads needs the **Input Monitoring** permission (System Settings → Privacy & Security). Without it, opening those devices fails with `kIOReturnNotPermitted`, and subscriptions that need an open device return `HidError::DeviceOpenFailed` or `HidError::ManagerOpenFailed`. Enumerating devices and watching them arrive or leave works without it.
 
 ## Quick start
@@ -72,6 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 - Subscriptions never take exclusive access. Seize a device only explicitly, with `HidDevice::open_with_options(keys::OPTIONS_TYPE_SEIZE_DEVICE)`.
 - `HidQueue::on_value_available` allows one subscription per queue at a time.
 - `HidManager`, `HidDevice`, `HidElement`, `HidValue`, `HidQueue` and `HidTransaction` are neither `Send` nor `Sync`, so each stays on the thread that created it. `IOKit` does not lock these objects: `IOHIDDevice` and `IOHIDManager` take no locks (or, for the manager, only around its device set) through macOS 12, and `IOHIDElement`, `IOHIDQueue` and `IOHIDTransaction` never do, while calls that look read-only, such as `IOHIDDeviceGetProperty` and `IOHIDDeviceCopyMatchingElements`, update internal caches. A device passed to a callback belongs to the event-loop thread; to use it elsewhere, send `device.id()` and open the device there with `HidDevice::from_id`. The async streams deliver plain data: `HidDeviceId`, `HidDeviceInfo`, `HidValueInfo` and `HidInputReport`.
+- `set_report_with_timeout` and `commit_with_timeout` wait for the device. Each call opens a private `IOHIDDevice` for the same service, schedules it in a private run-loop mode on the calling thread, and returns the completion status, or `HidError::Timeout` when none arrives in time. The timeout must lie between 50 ms and 20 minutes, the range `IOKit` documents for asynchronous requests. The private device is opened without seizing, so these calls fail with `HidError::DeviceOpenFailed` while another client has seized the device. `commit_with_timeout` commits output transactions; commit input transactions with `commit`.
 - The dispatch-queue functions (`activate`, `cancel`) are `unsafe`: `IOKit` aborts the process unless a dispatch queue was set first, which only the raw `ffi` module can do.
 
 The `async` feature wraps the same subscriptions as executor-agnostic streams: `ManagerInputValueStream`, `ManagerDeviceMatchingStream`, `ManagerDeviceRemovalStream`, `ManagerInputReportStream`, `DeviceRemovalStream`, `DeviceInputValueStream` and `QueueValueStream`.
