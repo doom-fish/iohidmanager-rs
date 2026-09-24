@@ -1,29 +1,8 @@
-use core::ffi::c_void;
 use core::ptr;
 
 #[allow(clippy::wildcard_imports)]
 use super::*;
 use crate::ffi_impl as ffi;
-use doom_fish_utils::panic_safe::catch_user_panic;
-
-#[allow(clippy::type_complexity)]
-struct DeviceRemovalContext {
-    callback: *mut Box<dyn Fn() + Send + Sync + 'static>,
-}
-
-unsafe extern "C" fn device_removal_trampoline(
-    context: *mut c_void,
-    result: ffi::IOReturn,
-    _sender: *mut c_void,
-) {
-    if context.is_null() || result != ffi::kIOReturnSuccess {
-        return;
-    }
-    let callback = unsafe { &*(*context.cast::<DeviceRemovalContext>()).callback };
-    catch_user_panic("device_removal_trampoline", || {
-        callback();
-    });
-}
 
 fn build_element_array(elements: &[HidElement]) -> Result<ffi::CFArrayRef, HidError> {
     let capacity = ffi::CFIndex::try_from(elements.len())
@@ -96,28 +75,7 @@ fn read_element_value_dictionary(
 
 /// Owns a registration from `IOHIDDeviceRegisterRemovalCallback`.
 pub struct DeviceRemovalSubscription {
-    device: ffi::IOHIDDeviceRef,
-    run_loop: ffi::CFRunLoopRef,
-    context: *mut DeviceRemovalContext,
-}
-
-unsafe impl Send for DeviceRemovalSubscription {}
-
-impl Drop for DeviceRemovalSubscription {
-    fn drop(&mut self) {
-        if self.device.is_null() || self.context.is_null() {
-            return;
-        }
-        unsafe {
-            ffi::IOHIDDeviceRegisterRemovalCallback(self.device, None, ptr::null_mut());
-            close_and_unschedule_device(self.device, self.run_loop);
-            ffi::CFRelease(self.device);
-            let context = Box::from_raw(self.context);
-            let _ = Box::from_raw(context.callback);
-        }
-        self.device = ptr::null();
-        self.context = ptr::null_mut();
-    }
+    _registration: Registration<RemovalHandler>,
 }
 
 #[allow(clippy::missing_errors_doc)]
@@ -169,24 +127,11 @@ impl HidDevice {
     where
         F: Fn() + Send + Sync + 'static,
     {
-        let run_loop = open_and_schedule_device(self.raw)?;
-        let callback: Box<dyn Fn() + Send + Sync + 'static> = Box::new(callback);
-        let callback_ptr = Box::into_raw(Box::new(callback));
-        let context_ptr = Box::into_raw(Box::new(DeviceRemovalContext {
-            callback: callback_ptr,
-        }));
-        unsafe {
-            ffi::IOHIDDeviceRegisterRemovalCallback(
-                self.raw,
-                Some(device_removal_trampoline),
-                context_ptr.cast(),
-            );
-            ffi::CFRetain(self.raw);
-        }
-        Ok(DeviceRemovalSubscription {
-            device: self.raw,
-            run_loop,
-            context: context_ptr,
+        let handler: RemovalHandler = Box::new(callback);
+        subscribe_device(self, handler, DeviceCallback::Removal).map(|registration| {
+            DeviceRemovalSubscription {
+                _registration: registration,
+            }
         })
     }
 

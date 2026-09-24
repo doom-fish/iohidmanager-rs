@@ -1,29 +1,49 @@
 use core::ffi::c_void;
 use core::ptr;
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
+use super::subscription::next_id;
 #[allow(clippy::wildcard_imports)]
 use super::*;
 use crate::ffi_impl as ffi;
-use doom_fish_utils::panic_safe::catch_user_panic;
 
-#[allow(clippy::type_complexity)]
-struct QueueValueContext {
-    callback: *mut Box<dyn Fn() + Send + Sync + 'static>,
-}
+type QueueHandler = Box<dyn Fn() + Send + Sync + 'static>;
 
 unsafe extern "C" fn queue_value_trampoline(
     context: *mut c_void,
     result: ffi::IOReturn,
     _sender: *mut c_void,
 ) {
-    if context.is_null() || result != ffi::kIOReturnSuccess {
-        return;
-    }
-    let callback = unsafe { &*(*context.cast::<QueueValueContext>()).callback };
     catch_user_panic("queue_value_trampoline", || {
-        callback();
+        if result != ffi::kIOReturnSuccess {
+            return;
+        }
+        let _callout = Callout::enter();
+        unsafe {
+            CallbackContext::<QueueHandler>::with(context, "queue_value_trampoline", |callback| {
+                callback();
+            });
+        }
     });
+}
+
+#[derive(Debug, Default)]
+struct QueueSchedule {
+    claimed: Option<u64>,
+    registered: Option<u64>,
+    scheduled: bool,
+}
+
+fn lock(schedule: &Mutex<QueueSchedule>) -> MutexGuard<'_, QueueSchedule> {
+    schedule.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+fn release_claim(schedule: &Mutex<QueueSchedule>, id: u64) {
+    let mut schedule = lock(schedule);
+    if schedule.claimed == Some(id) {
+        schedule.claimed = None;
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -47,6 +67,7 @@ impl HidQueueOptions {
 pub struct HidQueue {
     raw: ffi::IOHIDQueueRef,
     device: HidDevice,
+    schedule: Arc<Mutex<QueueSchedule>>,
 }
 
 unsafe impl Send for HidQueue {}
@@ -62,32 +83,72 @@ impl Drop for HidQueue {
 
 /// Owns a registration from `IOHIDQueueRegisterValueAvailableCallback`.
 pub struct QueueValueAvailableSubscription {
-    queue: ffi::IOHIDQueueRef,
-    run_loop: ffi::CFRunLoopRef,
-    context: *mut QueueValueContext,
+    id: u64,
+    schedule: Arc<Mutex<QueueSchedule>>,
+    _registration: Registration<QueueHandler>,
 }
-
-unsafe impl Send for QueueValueAvailableSubscription {}
 
 impl Drop for QueueValueAvailableSubscription {
     fn drop(&mut self) {
-        if self.queue.is_null() || self.context.is_null() {
-            return;
-        }
-        unsafe {
-            ffi::IOHIDQueueRegisterValueAvailableCallback(self.queue, None, ptr::null_mut());
-            ffi::IOHIDQueueUnscheduleFromRunLoop(
-                self.queue,
-                self.run_loop,
-                ffi::kCFRunLoopDefaultMode,
-            );
-            ffi::CFRelease(self.queue.cast_const());
-            let context = Box::from_raw(self.context);
-            let _ = Box::from_raw(context.callback);
-        }
-        self.queue = ptr::null_mut();
-        self.context = ptr::null_mut();
+        release_claim(&self.schedule, self.id);
     }
+}
+
+fn register_queue(
+    queue: Retained,
+    schedule: Arc<Mutex<QueueSchedule>>,
+    id: u64,
+    foreign: ForeignRef,
+) -> Teardown {
+    let raw = queue.get().cast_mut();
+    {
+        let mut state = lock(&schedule);
+        unsafe {
+            ffi::IOHIDQueueRegisterValueAvailableCallback(
+                raw,
+                Some(queue_value_trampoline),
+                foreign.as_ptr(),
+            );
+        }
+        state.registered = Some(id);
+        if !state.scheduled {
+            unsafe {
+                ffi::IOHIDQueueScheduleWithRunLoop(
+                    raw,
+                    ffi::CFRunLoopGetCurrent(),
+                    ffi::kCFRunLoopDefaultMode,
+                );
+            }
+            state.scheduled = true;
+        }
+    }
+    Box::new(move || {
+        let raw = queue.get().cast_mut();
+        let mut state = lock(&schedule);
+        if state.registered == Some(id) {
+            unsafe {
+                ffi::IOHIDQueueRegisterValueAvailableCallback(
+                    raw,
+                    Some(queue_value_trampoline),
+                    ptr::null_mut(),
+                );
+            }
+            state.registered = None;
+        }
+        if state.scheduled && state.registered.is_none() && state.claimed.is_none() {
+            unsafe {
+                ffi::IOHIDQueueUnscheduleFromRunLoop(
+                    raw,
+                    ffi::CFRunLoopGetCurrent(),
+                    ffi::kCFRunLoopDefaultMode,
+                );
+            }
+            state.scheduled = false;
+        }
+        drop(state);
+        drop(queue);
+        drop(foreign);
+    })
 }
 
 #[allow(clippy::missing_errors_doc)]
@@ -120,6 +181,7 @@ impl HidQueue {
             Ok(Self {
                 raw,
                 device: device.clone(),
+                schedule: Arc::default(),
             })
         }
     }
@@ -183,24 +245,6 @@ impl HidQueue {
     }
 
     #[must_use]
-    /// Wraps `IOHIDQueueScheduleWithRunLoop` for the current run loop.
-    pub fn schedule_current_run_loop(&self) -> ffi::CFRunLoopRef {
-        let run_loop = unsafe { ffi::CFRunLoopGetCurrent() };
-        unsafe {
-            ffi::IOHIDQueueScheduleWithRunLoop(self.raw, run_loop, ffi::kCFRunLoopDefaultMode);
-        }
-        run_loop
-    }
-
-    #[allow(clippy::not_unsafe_ptr_arg_deref)]
-    /// Wraps `IOHIDQueueUnscheduleFromRunLoop`.
-    pub fn unschedule_from_run_loop(&self, run_loop: ffi::CFRunLoopRef) {
-        unsafe {
-            ffi::IOHIDQueueUnscheduleFromRunLoop(self.raw, run_loop, ffi::kCFRunLoopDefaultMode);
-        }
-    }
-
-    #[must_use]
     /// Wraps `IOHIDQueueCopyNextValue`.
     pub fn copy_next_value(&self) -> Option<HidValue> {
         HidValue::from_raw_owned(
@@ -230,25 +274,32 @@ impl HidQueue {
     where
         F: Fn() + Send + Sync + 'static,
     {
-        let run_loop = self.schedule_current_run_loop();
-        let callback: Box<dyn Fn() + Send + Sync + 'static> = Box::new(callback);
-        let callback_ptr = Box::into_raw(Box::new(callback));
-        let context_ptr = Box::into_raw(Box::new(QueueValueContext {
-            callback: callback_ptr,
-        }));
-        unsafe {
-            ffi::IOHIDQueueRegisterValueAvailableCallback(
-                self.raw,
-                Some(queue_value_trampoline),
-                context_ptr.cast(),
-            );
-            ffi::CFRetain(self.raw.cast_const());
+        let id = next_id();
+        {
+            let mut schedule = lock(&self.schedule);
+            if schedule.claimed.is_some() {
+                return Err(HidError::InvalidArgument(
+                    "the queue already has a value-available subscription".to_owned(),
+                ));
+            }
+            schedule.claimed = Some(id);
         }
-        Ok(QueueValueAvailableSubscription {
-            queue: self.raw,
-            run_loop,
-            context: context_ptr,
-        })
+        let handler: QueueHandler = Box::new(callback);
+        let context = CallbackContext::new(handler);
+        let foreign = ForeignRef::new(&context);
+        let queue = Retained::retain(self.raw.cast_const());
+        let schedule = Arc::clone(&self.schedule);
+        match event_loop::run_sync(move || register_queue(queue, schedule, id, foreign)) {
+            Ok(teardown) => Ok(QueueValueAvailableSubscription {
+                id,
+                schedule: Arc::clone(&self.schedule),
+                _registration: Registration::new(context, teardown),
+            }),
+            Err(error) => {
+                release_claim(&self.schedule, id);
+                Err(error)
+            }
+        }
     }
 
     #[must_use]
@@ -262,4 +313,78 @@ pub(crate) fn queue_timeout_seconds(timeout: Duration) -> ffi::CFTimeInterval {
     let millis = timeout.as_millis().min(u128::from(u32::MAX));
     let millis = u32::try_from(millis).unwrap_or(u32::MAX);
     f64::from(millis) / 1000.0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn queue_for_first_device() -> Option<HidQueue> {
+        let manager = HidManager::new().expect("manager");
+        manager.set_device_matching(None).expect("matching");
+        manager
+            .live_devices()
+            .into_iter()
+            .find_map(|device| HidQueue::new(&device, 8).ok())
+    }
+
+    fn state(queue: &HidQueue) -> (Option<u64>, Option<u64>, bool) {
+        let schedule = lock(&queue.schedule);
+        (schedule.claimed, schedule.registered, schedule.scheduled)
+    }
+
+    #[test]
+    fn a_queue_takes_one_value_subscription_at_a_time() {
+        let Some(queue) = queue_for_first_device() else {
+            return;
+        };
+        let first = queue.on_value_available(|| {}).expect("first");
+        assert!(matches!(
+            queue.on_value_available(|| {}),
+            Err(HidError::InvalidArgument(_))
+        ));
+        assert_eq!(state(&queue), (Some(first.id), Some(first.id), true));
+        drop(first);
+        event_loop::flush();
+        assert_eq!(state(&queue), (None, None, false));
+    }
+
+    #[test]
+    fn a_new_subscription_survives_the_previous_teardown_in_either_order() {
+        let Some(queue) = queue_for_first_device() else {
+            return;
+        };
+        let first = queue.on_value_available(|| {}).expect("first");
+        drop(first);
+        let second = queue.on_value_available(|| {}).expect("second");
+        event_loop::flush();
+        assert_eq!(state(&queue), (Some(second.id), Some(second.id), true));
+
+        drop(second);
+        event_loop::flush();
+        let third = queue.on_value_available(|| {}).expect("third");
+        event_loop::flush();
+        assert_eq!(state(&queue), (Some(third.id), Some(third.id), true));
+
+        drop(third);
+        event_loop::flush();
+        assert_eq!(state(&queue), (None, None, false));
+    }
+
+    #[test]
+    fn a_subscription_outlives_its_queue_handle() {
+        let Some(queue) = queue_for_first_device() else {
+            return;
+        };
+        let subscription = queue.on_value_available(|| {}).expect("subscribe");
+        let schedule = Arc::clone(&queue.schedule);
+        drop(queue);
+        drop(subscription);
+        event_loop::flush();
+        let schedule = lock(&schedule);
+        assert_eq!(
+            (schedule.claimed, schedule.registered, schedule.scheduled),
+            (None, None, false)
+        );
+    }
 }

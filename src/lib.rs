@@ -12,6 +12,7 @@
 
 pub mod error;
 #[path = "ffi/mod.rs"]
+#[cfg_attr(not(feature = "raw-ffi"), allow(dead_code))]
 pub(crate) mod ffi_impl;
 pub mod hid;
 

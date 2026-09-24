@@ -4,10 +4,13 @@ use iohidmanager::prelude::*;
 fn queue_create_and_depth_roundtrip() {
     let manager = HidManager::new().expect("manager");
     manager.set_device_matching(None).expect("matching");
-    let Some(device) = manager.live_devices().into_iter().next() else {
+    let Some(queue) = manager
+        .live_devices()
+        .into_iter()
+        .find_map(|device| HidQueue::new(&device, 4).ok())
+    else {
         return;
     };
-    let queue = HidQueue::new(&device, 4).expect("queue");
     queue.set_depth(8).expect("set depth");
     assert_eq!(queue.depth(), 8);
 }

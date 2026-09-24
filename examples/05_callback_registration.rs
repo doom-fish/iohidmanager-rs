@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let report_events = Arc::new(AtomicUsize::new(0));
     let mut report_registered = false;
     for device in &devices {
-        if let Ok(_subscription) = device.on_input_report_with_timestamp(64, {
+        if let Ok(_subscription) = device.on_input_report_with_timestamp({
             let report_events = Arc::clone(&report_events);
             move |report| {
                 let _ = report.report_id;
@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let value_events = Arc::new(AtomicUsize::new(0));
     let mut value_registered = false;
     for device in &devices {
-        if let Ok(_subscription) = device.on_input_value({
+        if let Ok(_subscription) = device.on_input_value(&[], {
             let value_events = Arc::clone(&value_events);
             move |value| {
                 let _ = value.integer_value();

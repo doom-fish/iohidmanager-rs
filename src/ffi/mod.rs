@@ -880,6 +880,7 @@ pub const kIOHIDDeviceUsageKey: &str = "DeviceUsage";
 pub const kIOHIDPrimaryUsagePageKey: &str = "PrimaryUsagePage";
 pub const kIOHIDPrimaryUsageKey: &str = "PrimaryUsage";
 pub const kIOHIDReportDescriptorKey: &str = "ReportDescriptor";
+pub const kIOHIDMaxInputReportSizeKey: &str = "MaxInputReportSize";
 pub const kIOHIDElementUsageKey: &str = "Usage";
 pub const kIOHIDElementUsagePageKey: &str = "UsagePage";
 pub const kIOHIDElementReportIDKey: &str = "ReportID";

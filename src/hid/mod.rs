@@ -2,17 +2,22 @@
 
 use core::ffi::{c_char, c_void};
 use core::ptr;
+use std::cell::RefCell;
 use std::ffi::CString;
 use std::fmt;
 
 use crate::error::HidError;
 use crate::ffi_impl as ffi;
+use doom_fish_utils::callback_context::CallbackContext;
 use doom_fish_utils::panic_safe::catch_user_panic;
+use event_loop::Callout;
+use subscription::{ForeignRef, Registration, ReportBuffer, Retained, Teardown};
 
 /// Device helpers wrapping `IOHIDDevice*` APIs.
 pub mod device;
 /// Element helpers wrapping `IOHIDElement*` APIs.
 pub mod element;
+mod event_loop;
 /// Event-system keys and option constants mirrored from `IOHIDEventSystemKeys.h`.
 pub mod event_system;
 /// Property keys and option constants mirrored from `IOHIDKeys.h`.
@@ -23,6 +28,7 @@ pub mod manager;
 pub mod queue;
 /// Service plug-in UUIDs and COM-style interfaces mirrored from `IOHIDDevicePlugIn.h`.
 pub mod service_plugin;
+mod subscription;
 /// Transaction helpers wrapping `IOHIDTransaction*` APIs.
 pub mod transaction;
 /// Usage-page and usage constants mirrored from `IOHIDUsageTables.h`.
@@ -546,6 +552,8 @@ pub struct HidDeviceInfo {
 /// Owns an `IOHIDManagerRef` returned by `IOHIDManagerCreate`.
 pub struct HidManager {
     raw: ffi::IOHIDManagerRef,
+    device_matching: RefCell<Option<Vec<DeviceMatch>>>,
+    input_value_matching: RefCell<Vec<ElementMatch>>,
 }
 
 unsafe impl Send for HidManager {}
@@ -577,44 +585,20 @@ impl HidManager {
 
     /// Wraps `IOHIDManagerSetDeviceMatching`.
     pub fn set_device_matching(&self, usage: Option<HidUsage>) -> Result<(), HidError> {
-        usage.map_or_else(
-            || {
-                unsafe { ffi::IOHIDManagerSetDeviceMatching(self.raw, ptr::null()) };
-                Ok(())
-            },
-            |usage| self.set_device_matching_dict(Some(&DeviceMatch::usage(usage))),
-        )
+        let matches: Vec<DeviceMatch> = usage.map(DeviceMatch::usage).into_iter().collect();
+        self.set_device_matching_multiple(&matches)
     }
 
     /// Wraps `IOHIDManagerSetDeviceMatching` with a custom dictionary.
     pub fn set_device_matching_dict(&self, matching: Option<&DeviceMatch>) -> Result<(), HidError> {
-        match matching {
-            None => unsafe {
-                ffi::IOHIDManagerSetDeviceMatching(self.raw, ptr::null());
-                Ok(())
-            },
-            Some(matching) => {
-                let dict = matching.to_cf_dictionary()?;
-                unsafe {
-                    ffi::IOHIDManagerSetDeviceMatching(self.raw, dict);
-                    ffi::CFRelease(dict.cast());
-                }
-                Ok(())
-            }
-        }
+        self.set_device_matching_multiple(matching.map(core::slice::from_ref).unwrap_or_default())
     }
 
     /// Wraps `IOHIDManagerSetDeviceMatchingMultiple`.
     pub fn set_device_matching_multiple(&self, matches: &[DeviceMatch]) -> Result<(), HidError> {
-        if matches.is_empty() {
-            unsafe { ffi::IOHIDManagerSetDeviceMatchingMultiple(self.raw, ptr::null()) };
-            return Ok(());
-        }
-        let array = build_cf_dictionary_array(matches, DeviceMatch::to_cf_dictionary)?;
-        unsafe {
-            ffi::IOHIDManagerSetDeviceMatchingMultiple(self.raw, array);
-            ffi::CFRelease(array.cast());
-        }
+        let array = matching_array(matches, DeviceMatch::to_cf_dictionary)?;
+        unsafe { ffi::IOHIDManagerSetDeviceMatchingMultiple(self.raw, array_ptr(array.as_ref())) };
+        *self.device_matching.borrow_mut() = Some(matches.to_vec());
         Ok(())
     }
 
@@ -900,161 +884,70 @@ impl HidDevice {
         }
     }
 
-    /// Wraps `IOHIDDeviceSetInputValueMatching`.
-    pub fn set_input_value_matching(
-        &self,
-        matching: Option<&ElementMatch>,
-    ) -> Result<(), HidError> {
-        match matching {
-            None => unsafe {
-                ffi::IOHIDDeviceSetInputValueMatching(self.raw, ptr::null());
-                Ok(())
-            },
-            Some(matching) => {
-                let dict = matching.to_cf_dictionary()?;
-                unsafe {
-                    ffi::IOHIDDeviceSetInputValueMatching(self.raw, dict);
-                    ffi::CFRelease(dict.cast());
-                }
-                Ok(())
-            }
-        }
-    }
-
-    /// Wraps `IOHIDDeviceSetInputValueMatchingMultiple`.
-    pub fn set_input_value_matching_multiple(
-        &self,
-        matches: &[ElementMatch],
-    ) -> Result<(), HidError> {
-        if matches.is_empty() {
-            unsafe { ffi::IOHIDDeviceSetInputValueMatchingMultiple(self.raw, ptr::null()) };
-            return Ok(());
-        }
-        let array = build_cf_dictionary_array(matches, ElementMatch::to_cf_dictionary)?;
-        unsafe {
-            ffi::IOHIDDeviceSetInputValueMatchingMultiple(self.raw, array);
-            ffi::CFRelease(array.cast());
-        }
-        Ok(())
-    }
-
     /// Wraps `IOHIDDeviceRegisterInputReportCallback`.
-    pub fn on_input_report<F>(
-        &self,
-        max_report_length: usize,
-        callback: F,
-    ) -> Result<ReportSubscription, HidError>
+    pub fn on_input_report<F>(&self, callback: F) -> Result<ReportSubscription, HidError>
     where
         F: Fn(&[u8]) + Send + Sync + 'static,
     {
-        if max_report_length == 0 {
-            return Err(HidError::InvalidArgument(
-                "max_report_length must be greater than zero".to_owned(),
-            ));
-        }
-        let run_loop = open_and_schedule_device(self.raw)?;
-        let report_length = ffi::CFIndex::try_from(max_report_length).map_err(|_| {
-            HidError::InvalidArgument("max_report_length does not fit CFIndex".to_owned())
-        })?;
-        let buffer = vec![0_u8; max_report_length].into_boxed_slice();
-        let buffer_ptr = Box::into_raw(buffer);
-        let callback: Box<dyn Fn(&[u8]) + Send + Sync + 'static> = Box::new(callback);
-        let callback_ptr = Box::into_raw(Box::new(callback));
-        let context = Box::new(ReportContext {
-            buffer_len: max_report_length,
-            callback: callback_ptr,
-        });
-        let context_ptr = Box::into_raw(context);
-        unsafe {
-            ffi::IOHIDDeviceRegisterInputReportCallback(
-                self.raw,
-                (*buffer_ptr).as_mut_ptr(),
-                report_length,
-                Some(report_trampoline),
-                context_ptr.cast(),
-            );
-            ffi::CFRetain(self.raw);
-        }
-        Ok(ReportSubscription {
-            device: self.raw,
-            run_loop,
-            buffer_ptr,
-            buffer_len: max_report_length,
-            context: context_ptr,
-        })
+        let (buffer, length) = self.report_buffer()?;
+        let handler = ReportHandler {
+            buffer_len: buffer.len(),
+            callback: Box::new(callback),
+        };
+        subscribe_device(self, handler, DeviceCallback::Report(buffer, length)).map(
+            |registration| ReportSubscription {
+                _registration: registration,
+            },
+        )
     }
 
     /// Wraps `IOHIDDeviceRegisterInputReportWithTimeStampCallback`.
     pub fn on_input_report_with_timestamp<F>(
         &self,
-        max_report_length: usize,
         callback: F,
     ) -> Result<TimestampedReportSubscription, HidError>
     where
         F: Fn(HidInputReport) + Send + Sync + 'static,
     {
-        if max_report_length == 0 {
-            return Err(HidError::InvalidArgument(
-                "max_report_length must be greater than zero".to_owned(),
-            ));
-        }
-        let run_loop = open_and_schedule_device(self.raw)?;
-        let report_length = ffi::CFIndex::try_from(max_report_length).map_err(|_| {
-            HidError::InvalidArgument("max_report_length does not fit CFIndex".to_owned())
-        })?;
-        let buffer = vec![0_u8; max_report_length].into_boxed_slice();
-        let buffer_ptr = Box::into_raw(buffer);
-        let callback: Box<dyn Fn(HidInputReport) + Send + Sync + 'static> = Box::new(callback);
-        let callback_ptr = Box::into_raw(Box::new(callback));
-        let context = Box::new(TimestampedReportContext {
-            buffer_len: max_report_length,
-            callback: callback_ptr,
-        });
-        let context_ptr = Box::into_raw(context);
-        unsafe {
-            ffi::IOHIDDeviceRegisterInputReportWithTimeStampCallback(
-                self.raw,
-                (*buffer_ptr).as_mut_ptr(),
-                report_length,
-                Some(timestamped_report_trampoline),
-                context_ptr.cast(),
-            );
-            ffi::CFRetain(self.raw);
-        }
-        Ok(TimestampedReportSubscription {
-            device: self.raw,
-            run_loop,
-            buffer_ptr,
-            buffer_len: max_report_length,
-            context: context_ptr,
+        let (buffer, length) = self.report_buffer()?;
+        let handler = TimestampedReportHandler {
+            buffer_len: buffer.len(),
+            callback: Box::new(callback),
+        };
+        subscribe_device(
+            self,
+            handler,
+            DeviceCallback::TimestampedReport(buffer, length),
+        )
+        .map(|registration| TimestampedReportSubscription {
+            _registration: registration,
         })
     }
 
     /// Wraps `IOHIDDeviceRegisterInputValueCallback`.
-    pub fn on_input_value<F>(&self, callback: F) -> Result<ValueSubscription, HidError>
+    pub fn on_input_value<F>(
+        &self,
+        matching: &[ElementMatch],
+        callback: F,
+    ) -> Result<ValueSubscription, HidError>
     where
         F: Fn(&HidValue) + Send + Sync + 'static,
     {
-        let run_loop = open_and_schedule_device(self.raw)?;
-        let callback: Box<dyn Fn(&HidValue) + Send + Sync + 'static> = Box::new(callback);
-        let callback_ptr = Box::into_raw(Box::new(callback));
-        let context = Box::new(ValueContext {
-            callback: callback_ptr,
-        });
-        let context_ptr = Box::into_raw(context);
-        unsafe {
-            ffi::IOHIDDeviceRegisterInputValueCallback(
-                self.raw,
-                Some(value_trampoline),
-                context_ptr.cast(),
-            );
-            ffi::CFRetain(self.raw);
-        }
-        Ok(ValueSubscription {
-            device: self.raw,
-            run_loop,
-            context: context_ptr,
+        let matching = matching_array(matching, ElementMatch::to_cf_dictionary)?;
+        let handler: ValueHandler = Box::new(callback);
+        subscribe_device(self, handler, DeviceCallback::Value(matching)).map(|registration| {
+            ValueSubscription {
+                _registration: registration,
+            }
         })
+    }
+
+    fn report_buffer(&self) -> Result<(ReportBuffer, ffi::CFIndex), HidError> {
+        let len = report_buffer_len(self.property_u32(ffi::kIOHIDMaxInputReportSizeKey));
+        let length = ffi::CFIndex::try_from(len).map_err(|_| {
+            HidError::InvalidArgument("report buffer length does not fit CFIndex".to_owned())
+        })?;
+        Ok((ReportBuffer::new(len), length))
     }
 
     #[must_use]
@@ -1690,21 +1583,30 @@ impl HidValue {
     }
 }
 
-#[allow(clippy::type_complexity)]
-struct ReportContext {
-    buffer_len: usize,
-    callback: *mut Box<dyn Fn(&[u8]) + Send + Sync + 'static>,
+const DEFAULT_REPORT_BUFFER_LEN: usize = 64;
+const MAX_REPORT_BUFFER_LEN: usize = 1 << 20;
+
+fn report_buffer_len(max_input_report_size: Option<u32>) -> usize {
+    max_input_report_size
+        .and_then(|size| usize::try_from(size).ok())
+        .filter(|size| *size > 0)
+        .map_or(DEFAULT_REPORT_BUFFER_LEN, |size| {
+            size.min(MAX_REPORT_BUFFER_LEN)
+        })
 }
 
-#[allow(clippy::type_complexity)]
-struct TimestampedReportContext {
+type ValueHandler = Box<dyn Fn(&HidValue) + Send + Sync + 'static>;
+type RemovalHandler = Box<dyn Fn() + Send + Sync + 'static>;
+type ReportCallback = Box<dyn Fn(&[u8]) + Send + Sync + 'static>;
+
+struct ReportHandler {
     buffer_len: usize,
-    callback: *mut Box<dyn Fn(HidInputReport) + Send + Sync + 'static>,
+    callback: ReportCallback,
 }
 
-#[allow(clippy::type_complexity)]
-struct ValueContext {
-    callback: *mut Box<dyn Fn(&HidValue) + Send + Sync + 'static>,
+struct TimestampedReportHandler {
+    buffer_len: usize,
+    callback: Box<dyn Fn(HidInputReport) + Send + Sync + 'static>,
 }
 
 unsafe extern "C" fn report_trampoline(
@@ -1716,17 +1618,20 @@ unsafe extern "C" fn report_trampoline(
     report: *mut u8,
     report_length: ffi::CFIndex,
 ) {
-    if context.is_null() || report.is_null() || result != ffi::kIOReturnSuccess {
-        return;
-    }
-    let context = unsafe { &*context.cast::<ReportContext>() };
-    let length = usize::try_from(report_length)
-        .unwrap_or(0)
-        .min(context.buffer_len);
-    let bytes = unsafe { core::slice::from_raw_parts(report.cast_const(), length) };
-    let callback = unsafe { &*context.callback };
     catch_user_panic("report_trampoline", || {
-        callback(bytes);
+        if report.is_null() || result != ffi::kIOReturnSuccess {
+            return;
+        }
+        let _callout = Callout::enter();
+        unsafe {
+            CallbackContext::<ReportHandler>::with(context, "report_trampoline", |handler| {
+                let length = usize::try_from(report_length)
+                    .unwrap_or(0)
+                    .min(handler.buffer_len);
+                let bytes = core::slice::from_raw_parts(report.cast_const(), length);
+                (handler.callback)(bytes);
+            });
+        }
     });
 }
 
@@ -1740,22 +1645,29 @@ unsafe extern "C" fn timestamped_report_trampoline(
     report_length: ffi::CFIndex,
     timestamp: u64,
 ) {
-    if context.is_null() || report.is_null() || result != ffi::kIOReturnSuccess {
-        return;
-    }
-    let context = unsafe { &*context.cast::<TimestampedReportContext>() };
-    let length = usize::try_from(report_length)
-        .unwrap_or(0)
-        .min(context.buffer_len);
-    let bytes = unsafe { core::slice::from_raw_parts(report.cast_const(), length) }.to_vec();
-    let callback = unsafe { &*context.callback };
     catch_user_panic("timestamped_report_trampoline", || {
-        callback(HidInputReport {
-            report_type: HidReportType::from_raw(report_type),
-            report_id,
-            bytes,
-            timestamp,
-        });
+        if report.is_null() || result != ffi::kIOReturnSuccess {
+            return;
+        }
+        let _callout = Callout::enter();
+        unsafe {
+            CallbackContext::<TimestampedReportHandler>::with(
+                context,
+                "timestamped_report_trampoline",
+                |handler| {
+                    let length = usize::try_from(report_length)
+                        .unwrap_or(0)
+                        .min(handler.buffer_len);
+                    let bytes = core::slice::from_raw_parts(report.cast_const(), length).to_vec();
+                    (handler.callback)(HidInputReport {
+                        report_type: HidReportType::from_raw(report_type),
+                        report_id,
+                        bytes,
+                        timestamp,
+                    });
+                },
+            );
+        }
     });
 }
 
@@ -1765,133 +1677,190 @@ unsafe extern "C" fn value_trampoline(
     sender: *mut c_void,
     value: ffi::IOHIDValueRef,
 ) {
-    if context.is_null() || value.is_null() || result != ffi::kIOReturnSuccess {
-        return;
-    }
-    let device = (!sender.is_null()).then(|| HidDevice::from_raw_retained(sender.cast()));
-    let Some(value) = clone_value_ref(value, device.as_ref()) else {
-        return;
-    };
-    let context = unsafe { &*context.cast::<ValueContext>() };
-    let callback = unsafe { &*context.callback };
     catch_user_panic("value_trampoline", || {
-        callback(&value);
+        if value.is_null() || result != ffi::kIOReturnSuccess {
+            return;
+        }
+        let _callout = Callout::enter();
+        unsafe {
+            CallbackContext::<ValueHandler>::with(context, "value_trampoline", |callback| {
+                let device =
+                    (!sender.is_null()).then(|| HidDevice::from_raw_retained(sender.cast()));
+                if let Some(value) = clone_value_ref(value, device.as_ref()) {
+                    callback(&value);
+                }
+            });
+        }
+    });
+}
+
+unsafe extern "C" fn removal_trampoline(
+    context: *mut c_void,
+    result: ffi::IOReturn,
+    _sender: *mut c_void,
+) {
+    catch_user_panic("removal_trampoline", || {
+        if result != ffi::kIOReturnSuccess {
+            return;
+        }
+        let _callout = Callout::enter();
+        unsafe {
+            CallbackContext::<RemovalHandler>::with(context, "removal_trampoline", |callback| {
+                callback();
+            });
+        }
     });
 }
 
 /// Owns a registration from `IOHIDDeviceRegisterInputReportCallback`.
 pub struct ReportSubscription {
-    device: ffi::IOHIDDeviceRef,
-    run_loop: ffi::CFRunLoopRef,
-    buffer_ptr: *mut [u8],
-    buffer_len: usize,
-    context: *mut ReportContext,
-}
-
-unsafe impl Send for ReportSubscription {}
-
-impl Drop for ReportSubscription {
-    fn drop(&mut self) {
-        if self.device.is_null() || self.buffer_ptr.is_null() || self.context.is_null() {
-            return;
-        }
-        let report_length = ffi::CFIndex::try_from(self.buffer_len).unwrap_or(0);
-        unsafe {
-            ffi::IOHIDDeviceRegisterInputReportCallback(
-                self.device,
-                (*self.buffer_ptr).as_mut_ptr(),
-                report_length,
-                None,
-                ptr::null_mut(),
-            );
-            close_and_unschedule_device(self.device, self.run_loop);
-            ffi::CFRelease(self.device);
-            let context = Box::from_raw(self.context);
-            let _ = Box::from_raw(context.callback);
-            let _ = Box::from_raw(self.buffer_ptr);
-        }
-        self.device = ptr::null();
-        self.context = ptr::null_mut();
-    }
+    _registration: Registration<ReportHandler>,
 }
 
 /// Owns a registration from `IOHIDDeviceRegisterInputReportWithTimeStampCallback`.
 pub struct TimestampedReportSubscription {
-    device: ffi::IOHIDDeviceRef,
-    run_loop: ffi::CFRunLoopRef,
-    buffer_ptr: *mut [u8],
-    buffer_len: usize,
-    context: *mut TimestampedReportContext,
-}
-
-unsafe impl Send for TimestampedReportSubscription {}
-
-impl Drop for TimestampedReportSubscription {
-    fn drop(&mut self) {
-        if self.device.is_null() || self.buffer_ptr.is_null() || self.context.is_null() {
-            return;
-        }
-        let report_length = ffi::CFIndex::try_from(self.buffer_len).unwrap_or(0);
-        unsafe {
-            ffi::IOHIDDeviceRegisterInputReportWithTimeStampCallback(
-                self.device,
-                (*self.buffer_ptr).as_mut_ptr(),
-                report_length,
-                None,
-                ptr::null_mut(),
-            );
-            close_and_unschedule_device(self.device, self.run_loop);
-            ffi::CFRelease(self.device);
-            let context = Box::from_raw(self.context);
-            let _ = Box::from_raw(context.callback);
-            let _ = Box::from_raw(self.buffer_ptr);
-        }
-        self.device = ptr::null();
-        self.context = ptr::null_mut();
-    }
+    _registration: Registration<TimestampedReportHandler>,
 }
 
 /// Owns a registration from `IOHIDDeviceRegisterInputValueCallback`.
 pub struct ValueSubscription {
-    device: ffi::IOHIDDeviceRef,
-    run_loop: ffi::CFRunLoopRef,
-    context: *mut ValueContext,
+    _registration: Registration<ValueHandler>,
 }
 
-unsafe impl Send for ValueSubscription {}
+enum DeviceCallback {
+    Value(Option<Retained>),
+    Report(ReportBuffer, ffi::CFIndex),
+    TimestampedReport(ReportBuffer, ffi::CFIndex),
+    Removal,
+}
 
-impl Drop for ValueSubscription {
-    fn drop(&mut self) {
-        if self.device.is_null() || self.context.is_null() {
-            return;
+impl DeviceCallback {
+    const fn opens_device(&self) -> bool {
+        !matches!(self, Self::Removal)
+    }
+
+    unsafe fn register(&self, device: ffi::IOHIDDeviceRef, context: *mut c_void) {
+        match self {
+            Self::Value(matching) => {
+                if let Some(matching) = matching {
+                    ffi::IOHIDDeviceSetInputValueMatchingMultiple(device, matching.get().cast());
+                }
+                ffi::IOHIDDeviceRegisterInputValueCallback(device, Some(value_trampoline), context);
+            }
+            Self::Report(buffer, length) => ffi::IOHIDDeviceRegisterInputReportCallback(
+                device,
+                buffer.as_mut_ptr(),
+                *length,
+                Some(report_trampoline),
+                context,
+            ),
+            Self::TimestampedReport(buffer, length) => {
+                ffi::IOHIDDeviceRegisterInputReportWithTimeStampCallback(
+                    device,
+                    buffer.as_mut_ptr(),
+                    *length,
+                    Some(timestamped_report_trampoline),
+                    context,
+                );
+            }
+            Self::Removal => {
+                ffi::IOHIDDeviceRegisterRemovalCallback(device, Some(removal_trampoline), context);
+            }
         }
-        unsafe {
-            ffi::IOHIDDeviceRegisterInputValueCallback(self.device, None, ptr::null_mut());
-            close_and_unschedule_device(self.device, self.run_loop);
-            ffi::CFRelease(self.device);
-            let context = Box::from_raw(self.context);
-            let _ = Box::from_raw(context.callback);
+    }
+
+    unsafe fn unregister(&self, device: ffi::IOHIDDeviceRef, context: *mut c_void) {
+        match self {
+            Self::Value(_) => ffi::IOHIDDeviceRegisterInputValueCallback(device, None, context),
+            Self::Report(buffer, length) => ffi::IOHIDDeviceRegisterInputReportCallback(
+                device,
+                buffer.as_mut_ptr(),
+                *length,
+                None,
+                context,
+            ),
+            Self::TimestampedReport(buffer, length) => {
+                ffi::IOHIDDeviceRegisterInputReportWithTimeStampCallback(
+                    device,
+                    buffer.as_mut_ptr(),
+                    *length,
+                    None,
+                    context,
+                );
+            }
+            Self::Removal => ffi::IOHIDDeviceRegisterRemovalCallback(device, None, context),
         }
-        self.device = ptr::null();
-        self.context = ptr::null_mut();
     }
 }
 
-fn open_and_schedule_device(device: ffi::IOHIDDeviceRef) -> Result<ffi::CFRunLoopRef, HidError> {
-    let status = unsafe { ffi::IOHIDDeviceOpen(device, ffi::kIOHIDOptionsTypeNone) };
-    if status != ffi::kIOReturnSuccess {
-        return Err(HidError::DeviceOpenFailed(status));
+fn subscribe_device<T: Send + Sync + 'static>(
+    device: &HidDevice,
+    handler: T,
+    callback: DeviceCallback,
+) -> Result<Registration<T>, HidError> {
+    let service = unsafe { ffi::IOHIDDeviceGetService(device.raw) };
+    if service == 0 {
+        return Err(HidError::OperationFailed("IOHIDDeviceGetService"));
     }
-    let run_loop = unsafe { ffi::CFRunLoopGetCurrent() };
+    let context = CallbackContext::new(handler);
+    let foreign = ForeignRef::new(&context);
+    let teardown = event_loop::run_sync(move || open_private_device(service, callback, foreign))??;
+    Ok(Registration::new(context, teardown))
+}
+
+fn open_private_device(
+    service: ffi::io_service_t,
+    callback: DeviceCallback,
+    foreign: ForeignRef,
+) -> Result<Teardown, HidError> {
+    let device =
+        Retained::from_create(unsafe { ffi::IOHIDDeviceCreate(ffi::kCFAllocatorDefault, service) })
+            .ok_or(HidError::OperationFailed("IOHIDDeviceCreate"))?;
+    let opened = callback.opens_device();
+    if opened {
+        let status = unsafe { ffi::IOHIDDeviceOpen(device.get(), ffi::kIOHIDOptionsTypeNone) };
+        if status != ffi::kIOReturnSuccess {
+            return Err(HidError::DeviceOpenFailed(status));
+        }
+    }
     unsafe {
-        ffi::IOHIDDeviceScheduleWithRunLoop(device, run_loop, ffi::kCFRunLoopDefaultMode);
+        callback.register(device.get(), foreign.as_ptr());
+        ffi::IOHIDDeviceScheduleWithRunLoop(
+            device.get(),
+            ffi::CFRunLoopGetCurrent(),
+            ffi::kCFRunLoopDefaultMode,
+        );
     }
-    Ok(run_loop)
+    Ok(Box::new(move || {
+        unsafe {
+            ffi::IOHIDDeviceUnscheduleFromRunLoop(
+                device.get(),
+                ffi::CFRunLoopGetCurrent(),
+                ffi::kCFRunLoopDefaultMode,
+            );
+            callback.unregister(device.get(), foreign.as_ptr());
+            if opened {
+                let _ = ffi::IOHIDDeviceClose(device.get(), ffi::kIOHIDOptionsTypeNone);
+            }
+        }
+        drop(device);
+        drop(callback);
+        drop(foreign);
+    }))
 }
 
-unsafe fn close_and_unschedule_device(device: ffi::IOHIDDeviceRef, run_loop: ffi::CFRunLoopRef) {
-    ffi::IOHIDDeviceUnscheduleFromRunLoop(device, run_loop, ffi::kCFRunLoopDefaultMode);
-    let _ = ffi::IOHIDDeviceClose(device, ffi::kIOHIDOptionsTypeNone);
+fn matching_array<T>(
+    items: &[T],
+    build: fn(&T) -> Result<ffi::CFDictionaryRef, HidError>,
+) -> Result<Option<Retained>, HidError> {
+    if items.is_empty() {
+        return Ok(None);
+    }
+    build_cf_dictionary_array(items, build).map(|array| Retained::from_create(array.cast()))
+}
+
+fn array_ptr(array: Option<&Retained>) -> ffi::CFArrayRef {
+    array.map_or(ptr::null(), |array| array.get().cast())
 }
 
 pub(crate) fn clone_value_ref(

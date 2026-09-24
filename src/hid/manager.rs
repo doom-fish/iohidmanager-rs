@@ -1,38 +1,13 @@
 use core::ffi::c_void;
 use core::ptr;
 
-use doom_fish_utils::panic_safe::catch_user_panic;
-
 #[allow(clippy::wildcard_imports)]
 use super::*;
 use crate::ffi_impl as ffi;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ManagerDeviceCallbackKind {
-    Matching,
-    Removal,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ManagerReportCallbackKind {
-    Untimestamped,
-    Timestamped,
-}
-
-#[allow(clippy::type_complexity)]
-struct ManagerDeviceContext {
-    callback: *mut Box<dyn Fn(HidDevice) + Send + Sync + 'static>,
-}
-
-#[allow(clippy::type_complexity)]
-struct ManagerReportContext {
-    callback: *mut Box<dyn Fn(HidDevice, HidInputReport) + Send + Sync + 'static>,
-}
-
-#[allow(clippy::type_complexity)]
-struct ManagerValueContext {
-    callback: *mut Box<dyn Fn(HidDevice, &HidValue) + Send + Sync + 'static>,
-}
+type ManagerDeviceHandler = Box<dyn Fn(HidDevice) + Send + Sync + 'static>;
+type ManagerReportHandler = Box<dyn Fn(HidDevice, HidInputReport) + Send + Sync + 'static>;
+type ManagerValueHandler = Box<dyn Fn(HidDevice, &HidValue) + Send + Sync + 'static>;
 
 unsafe extern "C" fn manager_device_trampoline(
     context: *mut c_void,
@@ -40,17 +15,33 @@ unsafe extern "C" fn manager_device_trampoline(
     _sender: *mut c_void,
     device: ffi::IOHIDDeviceRef,
 ) {
-    if context.is_null() || device.is_null() || result != ffi::kIOReturnSuccess {
-        return;
-    }
-    unsafe { ffi::CFRetain(device) };
-    // SAFETY: context is non-null (checked above) and points to a
-    // `ManagerDeviceContext` whose `callback` field was `Box::into_raw`'d
-    // when the subscription was created.
-    let callback = unsafe { &*(*context.cast::<ManagerDeviceContext>()).callback };
     catch_user_panic("manager_device_trampoline", || {
-        callback(HidDevice { raw: device });
+        if device.is_null() || result != ffi::kIOReturnSuccess {
+            return;
+        }
+        let _callout = Callout::enter();
+        unsafe {
+            CallbackContext::<ManagerDeviceHandler>::with(
+                context,
+                "manager_device_trampoline",
+                |callback| callback(HidDevice::from_raw_retained(device)),
+            );
+        }
     });
+}
+
+unsafe fn deliver_report(
+    context: *mut c_void,
+    site: &str,
+    sender: *mut c_void,
+    report: HidInputReport,
+) {
+    let _callout = Callout::enter();
+    unsafe {
+        CallbackContext::<ManagerReportHandler>::with(context, site, |callback| {
+            callback(HidDevice::from_raw_retained(sender.cast()), report);
+        });
+    }
 }
 
 unsafe extern "C" fn manager_report_trampoline(
@@ -62,29 +53,19 @@ unsafe extern "C" fn manager_report_trampoline(
     report: *mut u8,
     report_length: ffi::CFIndex,
 ) {
-    if context.is_null() || sender.is_null() || report.is_null() || result != ffi::kIOReturnSuccess
-    {
-        return;
-    }
-    let Some(device) = retained_device_from_sender(sender) else {
-        return;
-    };
-    let length = usize::try_from(report_length).unwrap_or(0);
-    let bytes = unsafe { core::slice::from_raw_parts(report.cast_const(), length) }.to_vec();
-    // SAFETY: context is non-null (checked above) and points to a
-    // `ManagerReportContext` whose `callback` field was `Box::into_raw`'d
-    // when the subscription was created.
-    let callback = unsafe { &*(*context.cast::<ManagerReportContext>()).callback };
     catch_user_panic("manager_report_trampoline", || {
-        callback(
-            device,
-            HidInputReport {
-                report_type: HidReportType::from_raw(report_type),
-                report_id,
-                bytes,
-                timestamp: 0,
-            },
-        );
+        if sender.is_null() || report.is_null() || result != ffi::kIOReturnSuccess {
+            return;
+        }
+        let length = usize::try_from(report_length).unwrap_or(0);
+        let bytes = unsafe { core::slice::from_raw_parts(report.cast_const(), length) }.to_vec();
+        let report = HidInputReport {
+            report_type: HidReportType::from_raw(report_type),
+            report_id,
+            bytes,
+            timestamp: 0,
+        };
+        unsafe { deliver_report(context, "manager_report_trampoline", sender, report) };
     });
 }
 
@@ -98,29 +79,26 @@ unsafe extern "C" fn manager_timestamped_report_trampoline(
     report_length: ffi::CFIndex,
     timestamp: u64,
 ) {
-    if context.is_null() || sender.is_null() || report.is_null() || result != ffi::kIOReturnSuccess
-    {
-        return;
-    }
-    let Some(device) = retained_device_from_sender(sender) else {
-        return;
-    };
-    let length = usize::try_from(report_length).unwrap_or(0);
-    let bytes = unsafe { core::slice::from_raw_parts(report.cast_const(), length) }.to_vec();
-    // SAFETY: context is non-null (checked above) and points to a
-    // `ManagerReportContext` whose `callback` field was `Box::into_raw`'d
-    // when the subscription was created.
-    let callback = unsafe { &*(*context.cast::<ManagerReportContext>()).callback };
     catch_user_panic("manager_timestamped_report_trampoline", || {
-        callback(
-            device,
-            HidInputReport {
-                report_type: HidReportType::from_raw(report_type),
-                report_id,
-                bytes,
-                timestamp,
-            },
-        );
+        if sender.is_null() || report.is_null() || result != ffi::kIOReturnSuccess {
+            return;
+        }
+        let length = usize::try_from(report_length).unwrap_or(0);
+        let bytes = unsafe { core::slice::from_raw_parts(report.cast_const(), length) }.to_vec();
+        let report = HidInputReport {
+            report_type: HidReportType::from_raw(report_type),
+            report_id,
+            bytes,
+            timestamp,
+        };
+        unsafe {
+            deliver_report(
+                context,
+                "manager_timestamped_report_trampoline",
+                sender,
+                report,
+            );
+        }
     });
 }
 
@@ -130,153 +108,157 @@ unsafe extern "C" fn manager_value_trampoline(
     sender: *mut c_void,
     value: ffi::IOHIDValueRef,
 ) {
-    if context.is_null() || sender.is_null() || value.is_null() || result != ffi::kIOReturnSuccess {
-        return;
-    }
-    let Some(device) = retained_device_from_sender(sender) else {
-        return;
-    };
-    let Some(value) = clone_value_ref(value, Some(&device)) else {
-        return;
-    };
-    // SAFETY: context is non-null (checked above) and points to a
-    // `ManagerValueContext` whose `callback` field was `Box::into_raw`'d
-    // when the subscription was created.
-    let callback = unsafe { &*(*context.cast::<ManagerValueContext>()).callback };
     catch_user_panic("manager_value_trampoline", || {
-        callback(device, &value);
+        if sender.is_null() || value.is_null() || result != ffi::kIOReturnSuccess {
+            return;
+        }
+        let _callout = Callout::enter();
+        unsafe {
+            CallbackContext::<ManagerValueHandler>::with(
+                context,
+                "manager_value_trampoline",
+                |callback| {
+                    let device = HidDevice::from_raw_retained(sender.cast());
+                    if let Some(value) = clone_value_ref(value, Some(&device)) {
+                        callback(device, &value);
+                    }
+                },
+            );
+        }
     });
 }
 
-fn retained_device_from_sender(sender: *mut c_void) -> Option<HidDevice> {
-    let device = sender.cast::<c_void>();
-    if device.is_null() {
-        return None;
-    }
-    unsafe { ffi::CFRetain(device) };
-    Some(HidDevice { raw: device.cast() })
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ManagerCallback {
+    Matching,
+    Removal,
+    Report,
+    TimestampedReport,
+    Value,
 }
 
-fn schedule_manager(manager: ffi::IOHIDManagerRef) -> ffi::CFRunLoopRef {
-    let run_loop = unsafe { ffi::CFRunLoopGetCurrent() };
+impl ManagerCallback {
+    const fn opens_devices(self) -> bool {
+        matches!(self, Self::Report | Self::TimestampedReport | Self::Value)
+    }
+
+    unsafe fn register(self, manager: ffi::IOHIDManagerRef, context: *mut c_void) {
+        match self {
+            Self::Matching => ffi::IOHIDManagerRegisterDeviceMatchingCallback(
+                manager,
+                Some(manager_device_trampoline),
+                context,
+            ),
+            Self::Removal => ffi::IOHIDManagerRegisterDeviceRemovalCallback(
+                manager,
+                Some(manager_device_trampoline),
+                context,
+            ),
+            Self::Report => ffi::IOHIDManagerRegisterInputReportCallback(
+                manager,
+                Some(manager_report_trampoline),
+                context,
+            ),
+            Self::TimestampedReport => ffi::IOHIDManagerRegisterInputReportWithTimeStampCallback(
+                manager,
+                Some(manager_timestamped_report_trampoline),
+                context,
+            ),
+            Self::Value => ffi::IOHIDManagerRegisterInputValueCallback(
+                manager,
+                Some(manager_value_trampoline),
+                context,
+            ),
+        }
+    }
+
+    unsafe fn unregister(self, manager: ffi::IOHIDManagerRef) {
+        match self {
+            Self::Matching => {
+                ffi::IOHIDManagerRegisterDeviceMatchingCallback(manager, None, ptr::null_mut());
+            }
+            Self::Removal => {
+                ffi::IOHIDManagerRegisterDeviceRemovalCallback(manager, None, ptr::null_mut());
+            }
+            Self::Report => {
+                ffi::IOHIDManagerRegisterInputReportCallback(manager, None, ptr::null_mut());
+            }
+            Self::TimestampedReport => {
+                ffi::IOHIDManagerRegisterInputReportWithTimeStampCallback(
+                    manager,
+                    None,
+                    ptr::null_mut(),
+                );
+            }
+            Self::Value => {
+                ffi::IOHIDManagerRegisterInputValueCallback(manager, None, ptr::null_mut());
+            }
+        }
+    }
+}
+
+fn open_private_manager(
+    devices: Option<Retained>,
+    inputs: Option<Retained>,
+    callback: ManagerCallback,
+    foreign: ForeignRef,
+) -> Result<Teardown, HidError> {
+    let manager = Retained::from_create(unsafe {
+        ffi::IOHIDManagerCreate(ffi::kCFAllocatorDefault, ffi::kIOHIDManagerOptionNone)
+    })
+    .ok_or(HidError::ManagerCreateFailed)?;
     unsafe {
-        ffi::IOHIDManagerScheduleWithRunLoop(manager, run_loop, ffi::kCFRunLoopDefaultMode);
+        ffi::IOHIDManagerSetDeviceMatchingMultiple(manager.get(), array_ptr(devices.as_ref()));
+        if inputs.is_some() {
+            ffi::IOHIDManagerSetInputValueMatchingMultiple(
+                manager.get(),
+                array_ptr(inputs.as_ref()),
+            );
+        }
+        callback.register(manager.get(), foreign.as_ptr());
     }
-    run_loop
-}
-
-unsafe fn unschedule_manager(manager: ffi::IOHIDManagerRef, run_loop: ffi::CFRunLoopRef) {
-    ffi::IOHIDManagerUnscheduleFromRunLoop(manager, run_loop, ffi::kCFRunLoopDefaultMode);
+    drop(devices);
+    drop(inputs);
+    if callback.opens_devices() {
+        let status = unsafe { ffi::IOHIDManagerOpen(manager.get(), ffi::kIOHIDOptionsTypeNone) };
+        if status != ffi::kIOReturnSuccess {
+            unsafe {
+                let _ = ffi::IOHIDManagerClose(manager.get(), ffi::kIOHIDOptionsTypeNone);
+                callback.unregister(manager.get());
+            }
+            return Err(HidError::ManagerOpenFailed(status));
+        }
+    }
+    unsafe {
+        ffi::IOHIDManagerScheduleWithRunLoop(
+            manager.get(),
+            ffi::CFRunLoopGetCurrent(),
+            ffi::kCFRunLoopDefaultMode,
+        );
+    }
+    Ok(Box::new(move || {
+        unsafe {
+            let _ = ffi::IOHIDManagerClose(manager.get(), ffi::kIOHIDOptionsTypeNone);
+            callback.unregister(manager.get());
+        }
+        drop(manager);
+        drop(foreign);
+    }))
 }
 
 /// Owns a registration from `IOHIDManagerRegisterDeviceMatchingCallback` or `IOHIDManagerRegisterDeviceRemovalCallback`.
 pub struct ManagerDeviceSubscription {
-    manager: ffi::IOHIDManagerRef,
-    run_loop: ffi::CFRunLoopRef,
-    context: *mut ManagerDeviceContext,
-    kind: ManagerDeviceCallbackKind,
-}
-
-unsafe impl Send for ManagerDeviceSubscription {}
-
-impl Drop for ManagerDeviceSubscription {
-    fn drop(&mut self) {
-        if self.manager.is_null() || self.context.is_null() {
-            return;
-        }
-        unsafe {
-            match self.kind {
-                ManagerDeviceCallbackKind::Matching => {
-                    ffi::IOHIDManagerRegisterDeviceMatchingCallback(
-                        self.manager,
-                        None,
-                        ptr::null_mut(),
-                    );
-                }
-                ManagerDeviceCallbackKind::Removal => {
-                    ffi::IOHIDManagerRegisterDeviceRemovalCallback(
-                        self.manager,
-                        None,
-                        ptr::null_mut(),
-                    );
-                }
-            }
-            unschedule_manager(self.manager, self.run_loop);
-            ffi::CFRelease(self.manager);
-            let context = Box::from_raw(self.context);
-            let _ = Box::from_raw(context.callback);
-        }
-        self.manager = ptr::null();
-        self.context = ptr::null_mut();
-    }
+    _registration: Registration<ManagerDeviceHandler>,
 }
 
 /// Owns a registration from `IOHIDManagerRegisterInputReportCallback` or `IOHIDManagerRegisterInputReportWithTimeStampCallback`.
 pub struct ManagerReportSubscription {
-    manager: ffi::IOHIDManagerRef,
-    run_loop: ffi::CFRunLoopRef,
-    context: *mut ManagerReportContext,
-    kind: ManagerReportCallbackKind,
-}
-
-unsafe impl Send for ManagerReportSubscription {}
-
-impl Drop for ManagerReportSubscription {
-    fn drop(&mut self) {
-        if self.manager.is_null() || self.context.is_null() {
-            return;
-        }
-        unsafe {
-            match self.kind {
-                ManagerReportCallbackKind::Untimestamped => {
-                    ffi::IOHIDManagerRegisterInputReportCallback(
-                        self.manager,
-                        None,
-                        ptr::null_mut(),
-                    );
-                }
-                ManagerReportCallbackKind::Timestamped => {
-                    ffi::IOHIDManagerRegisterInputReportWithTimeStampCallback(
-                        self.manager,
-                        None,
-                        ptr::null_mut(),
-                    );
-                }
-            }
-            unschedule_manager(self.manager, self.run_loop);
-            ffi::CFRelease(self.manager);
-            let context = Box::from_raw(self.context);
-            let _ = Box::from_raw(context.callback);
-        }
-        self.manager = ptr::null();
-        self.context = ptr::null_mut();
-    }
+    _registration: Registration<ManagerReportHandler>,
 }
 
 /// Owns a registration from `IOHIDManagerRegisterInputValueCallback`.
 pub struct ManagerValueSubscription {
-    manager: ffi::IOHIDManagerRef,
-    run_loop: ffi::CFRunLoopRef,
-    context: *mut ManagerValueContext,
-}
-
-unsafe impl Send for ManagerValueSubscription {}
-
-impl Drop for ManagerValueSubscription {
-    fn drop(&mut self) {
-        if self.manager.is_null() || self.context.is_null() {
-            return;
-        }
-        unsafe {
-            ffi::IOHIDManagerRegisterInputValueCallback(self.manager, None, ptr::null_mut());
-            unschedule_manager(self.manager, self.run_loop);
-            ffi::CFRelease(self.manager);
-            let context = Box::from_raw(self.context);
-            let _ = Box::from_raw(context.callback);
-        }
-        self.manager = ptr::null();
-        self.context = ptr::null_mut();
-    }
+    _registration: Registration<ManagerValueHandler>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -323,7 +305,7 @@ impl core::ops::BitOrAssign for HidManagerOptions {
     }
 }
 
-#[allow(clippy::missing_errors_doc, clippy::type_complexity)]
+#[allow(clippy::missing_errors_doc)]
 impl HidManager {
     /// Wraps `IOHIDManagerCreate` and `IOHIDManagerOpen`.
     pub fn with_options(options: HidManagerOptions) -> Result<Self, HidError> {
@@ -336,7 +318,11 @@ impl HidManager {
             unsafe { ffi::CFRelease(raw) };
             return Err(HidError::ManagerOpenFailed(status));
         }
-        Ok(Self { raw })
+        Ok(Self {
+            raw,
+            device_matching: RefCell::new(None),
+            input_value_matching: RefCell::new(Vec::new()),
+        })
     }
 
     /// Wraps `IOHIDManagerSaveToPropertyDomain` with `HidManagerOptions`.
@@ -349,6 +335,7 @@ impl HidManager {
     ) -> Result<(), HidError> {
         self.save_to_property_domain(application_id, user_name, host_name, options.bits())
     }
+
     #[allow(clippy::missing_safety_doc)]
     /// Wraps `IOHIDManagerActivate`.
     pub unsafe fn activate(&self) {
@@ -366,20 +353,9 @@ impl HidManager {
         &self,
         matching: Option<&ElementMatch>,
     ) -> Result<(), HidError> {
-        match matching {
-            None => unsafe {
-                ffi::IOHIDManagerSetInputValueMatching(self.raw, ptr::null());
-                Ok(())
-            },
-            Some(matching) => {
-                let dict = matching.to_cf_dictionary()?;
-                unsafe {
-                    ffi::IOHIDManagerSetInputValueMatching(self.raw, dict);
-                    ffi::CFRelease(dict.cast());
-                }
-                Ok(())
-            }
-        }
+        self.set_input_value_matching_multiple(
+            matching.map(core::slice::from_ref).unwrap_or_default(),
+        )
     }
 
     /// Wraps `IOHIDManagerSetInputValueMatchingMultiple`.
@@ -387,18 +363,33 @@ impl HidManager {
         &self,
         matches: &[ElementMatch],
     ) -> Result<(), HidError> {
-        if matches.is_empty() {
-            unsafe {
-                ffi::IOHIDManagerSetInputValueMatchingMultiple(self.raw, ptr::null());
-            }
-            return Ok(());
-        }
-        let array = build_cf_dictionary_array(matches, ElementMatch::to_cf_dictionary)?;
+        let array = matching_array(matches, ElementMatch::to_cf_dictionary)?;
         unsafe {
-            ffi::IOHIDManagerSetInputValueMatchingMultiple(self.raw, array);
-            ffi::CFRelease(array.cast());
+            ffi::IOHIDManagerSetInputValueMatchingMultiple(self.raw, array_ptr(array.as_ref()));
         }
+        *self.input_value_matching.borrow_mut() = matches.to_vec();
         Ok(())
+    }
+
+    fn subscribe<T: Send + Sync + 'static>(
+        &self,
+        handler: T,
+        callback: ManagerCallback,
+    ) -> Result<Registration<T>, HidError> {
+        let devices = self.device_matching.borrow().clone().ok_or_else(|| {
+            HidError::InvalidArgument("set the device matching before subscribing".to_owned())
+        })?;
+        let devices = matching_array(&devices, DeviceMatch::to_cf_dictionary)?;
+        let inputs = matching_array(
+            &self.input_value_matching.borrow(),
+            ElementMatch::to_cf_dictionary,
+        )?;
+        let context = CallbackContext::new(handler);
+        let foreign = ForeignRef::new(&context);
+        let teardown = event_loop::run_sync(move || {
+            open_private_manager(devices, inputs, callback, foreign)
+        })??;
+        Ok(Registration::new(context, teardown))
     }
 
     /// Wraps `IOHIDManagerRegisterDeviceMatchingCallback`.
@@ -406,26 +397,11 @@ impl HidManager {
     where
         F: Fn(HidDevice) + Send + Sync + 'static,
     {
-        let run_loop = schedule_manager(self.raw);
-        let callback: Box<dyn Fn(HidDevice) + Send + Sync + 'static> = Box::new(callback);
-        let callback_ptr = Box::into_raw(Box::new(callback));
-        let context_ptr = Box::into_raw(Box::new(ManagerDeviceContext {
-            callback: callback_ptr,
-        }));
-        unsafe {
-            ffi::IOHIDManagerRegisterDeviceMatchingCallback(
-                self.raw,
-                Some(manager_device_trampoline),
-                context_ptr.cast(),
-            );
-            ffi::CFRetain(self.raw);
-        }
-        Ok(ManagerDeviceSubscription {
-            manager: self.raw,
-            run_loop,
-            context: context_ptr,
-            kind: ManagerDeviceCallbackKind::Matching,
-        })
+        let handler: ManagerDeviceHandler = Box::new(callback);
+        self.subscribe(handler, ManagerCallback::Matching)
+            .map(|registration| ManagerDeviceSubscription {
+                _registration: registration,
+            })
     }
 
     /// Wraps `IOHIDManagerRegisterDeviceRemovalCallback`.
@@ -433,26 +409,11 @@ impl HidManager {
     where
         F: Fn(HidDevice) + Send + Sync + 'static,
     {
-        let run_loop = schedule_manager(self.raw);
-        let callback: Box<dyn Fn(HidDevice) + Send + Sync + 'static> = Box::new(callback);
-        let callback_ptr = Box::into_raw(Box::new(callback));
-        let context_ptr = Box::into_raw(Box::new(ManagerDeviceContext {
-            callback: callback_ptr,
-        }));
-        unsafe {
-            ffi::IOHIDManagerRegisterDeviceRemovalCallback(
-                self.raw,
-                Some(manager_device_trampoline),
-                context_ptr.cast(),
-            );
-            ffi::CFRetain(self.raw);
-        }
-        Ok(ManagerDeviceSubscription {
-            manager: self.raw,
-            run_loop,
-            context: context_ptr,
-            kind: ManagerDeviceCallbackKind::Removal,
-        })
+        let handler: ManagerDeviceHandler = Box::new(callback);
+        self.subscribe(handler, ManagerCallback::Removal)
+            .map(|registration| ManagerDeviceSubscription {
+                _registration: registration,
+            })
     }
 
     /// Wraps `IOHIDManagerRegisterInputReportCallback`.
@@ -460,27 +421,11 @@ impl HidManager {
     where
         F: Fn(HidDevice, HidInputReport) + Send + Sync + 'static,
     {
-        let run_loop = schedule_manager(self.raw);
-        let callback: Box<dyn Fn(HidDevice, HidInputReport) + Send + Sync + 'static> =
-            Box::new(callback);
-        let callback_ptr = Box::into_raw(Box::new(callback));
-        let context_ptr = Box::into_raw(Box::new(ManagerReportContext {
-            callback: callback_ptr,
-        }));
-        unsafe {
-            ffi::IOHIDManagerRegisterInputReportCallback(
-                self.raw,
-                Some(manager_report_trampoline),
-                context_ptr.cast(),
-            );
-            ffi::CFRetain(self.raw);
-        }
-        Ok(ManagerReportSubscription {
-            manager: self.raw,
-            run_loop,
-            context: context_ptr,
-            kind: ManagerReportCallbackKind::Untimestamped,
-        })
+        let handler: ManagerReportHandler = Box::new(callback);
+        self.subscribe(handler, ManagerCallback::Report)
+            .map(|registration| ManagerReportSubscription {
+                _registration: registration,
+            })
     }
 
     /// Wraps `IOHIDManagerRegisterInputReportWithTimeStampCallback`.
@@ -491,27 +436,11 @@ impl HidManager {
     where
         F: Fn(HidDevice, HidInputReport) + Send + Sync + 'static,
     {
-        let run_loop = schedule_manager(self.raw);
-        let callback: Box<dyn Fn(HidDevice, HidInputReport) + Send + Sync + 'static> =
-            Box::new(callback);
-        let callback_ptr = Box::into_raw(Box::new(callback));
-        let context_ptr = Box::into_raw(Box::new(ManagerReportContext {
-            callback: callback_ptr,
-        }));
-        unsafe {
-            ffi::IOHIDManagerRegisterInputReportWithTimeStampCallback(
-                self.raw,
-                Some(manager_timestamped_report_trampoline),
-                context_ptr.cast(),
-            );
-            ffi::CFRetain(self.raw);
-        }
-        Ok(ManagerReportSubscription {
-            manager: self.raw,
-            run_loop,
-            context: context_ptr,
-            kind: ManagerReportCallbackKind::Timestamped,
-        })
+        let handler: ManagerReportHandler = Box::new(callback);
+        self.subscribe(handler, ManagerCallback::TimestampedReport)
+            .map(|registration| ManagerReportSubscription {
+                _registration: registration,
+            })
     }
 
     /// Wraps `IOHIDManagerRegisterInputValueCallback`.
@@ -519,25 +448,10 @@ impl HidManager {
     where
         F: Fn(HidDevice, &HidValue) + Send + Sync + 'static,
     {
-        let run_loop = schedule_manager(self.raw);
-        let callback: Box<dyn Fn(HidDevice, &HidValue) + Send + Sync + 'static> =
-            Box::new(callback);
-        let callback_ptr = Box::into_raw(Box::new(callback));
-        let context_ptr = Box::into_raw(Box::new(ManagerValueContext {
-            callback: callback_ptr,
-        }));
-        unsafe {
-            ffi::IOHIDManagerRegisterInputValueCallback(
-                self.raw,
-                Some(manager_value_trampoline),
-                context_ptr.cast(),
-            );
-            ffi::CFRetain(self.raw);
-        }
-        Ok(ManagerValueSubscription {
-            manager: self.raw,
-            run_loop,
-            context: context_ptr,
-        })
+        let handler: ManagerValueHandler = Box::new(callback);
+        self.subscribe(handler, ManagerCallback::Value)
+            .map(|registration| ManagerValueSubscription {
+                _registration: registration,
+            })
     }
 }
