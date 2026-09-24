@@ -688,9 +688,9 @@ impl HidManager {
         let value_cf = make_cfnumber_u32(value)?;
         let ok = with_cfstring(key, |key_cf| unsafe {
             ffi::IOHIDManagerSetProperty(self.raw, key_cf, value_cf.cast())
-        })?;
+        });
         unsafe { ffi::CFRelease(value_cf.cast()) };
-        if ok {
+        if ok? {
             Ok(())
         } else {
             Err(HidError::OperationFailed("IOHIDManagerSetProperty"))
@@ -702,9 +702,9 @@ impl HidManager {
         let value_cf = make_cfstring(value)?;
         let ok = with_cfstring(key, |key_cf| unsafe {
             ffi::IOHIDManagerSetProperty(self.raw, key_cf, value_cf.cast())
-        })?;
+        });
         unsafe { ffi::CFRelease(value_cf.cast()) };
-        if ok {
+        if ok? {
             Ok(())
         } else {
             Err(HidError::OperationFailed("IOHIDManagerSetProperty"))
@@ -716,9 +716,9 @@ impl HidManager {
         let value_cf = make_cfdata(value)?;
         let ok = with_cfstring(key, |key_cf| unsafe {
             ffi::IOHIDManagerSetProperty(self.raw, key_cf, value_cf.cast())
-        })?;
+        });
         unsafe { ffi::CFRelease(value_cf.cast()) };
-        if ok {
+        if ok? {
             Ok(())
         } else {
             Err(HidError::OperationFailed("IOHIDManagerSetProperty"))
@@ -863,9 +863,9 @@ impl HidDevice {
         let value_cf = make_cfnumber_u32(value)?;
         let ok = with_cfstring(key, |key_cf| unsafe {
             ffi::IOHIDDeviceSetProperty(self.raw, key_cf, value_cf.cast())
-        })?;
+        });
         unsafe { ffi::CFRelease(value_cf.cast()) };
-        if ok {
+        if ok? {
             Ok(())
         } else {
             Err(HidError::OperationFailed("IOHIDDeviceSetProperty"))
@@ -877,9 +877,9 @@ impl HidDevice {
         let value_cf = make_cfstring(value)?;
         let ok = with_cfstring(key, |key_cf| unsafe {
             ffi::IOHIDDeviceSetProperty(self.raw, key_cf, value_cf.cast())
-        })?;
+        });
         unsafe { ffi::CFRelease(value_cf.cast()) };
-        if ok {
+        if ok? {
             Ok(())
         } else {
             Err(HidError::OperationFailed("IOHIDDeviceSetProperty"))
@@ -891,9 +891,9 @@ impl HidDevice {
         let value_cf = make_cfdata(value)?;
         let ok = with_cfstring(key, |key_cf| unsafe {
             ffi::IOHIDDeviceSetProperty(self.raw, key_cf, value_cf.cast())
-        })?;
+        });
         unsafe { ffi::CFRelease(value_cf.cast()) };
-        if ok {
+        if ok? {
             Ok(())
         } else {
             Err(HidError::OperationFailed("IOHIDDeviceSetProperty"))
@@ -1475,9 +1475,9 @@ impl HidElement {
         let value_cf = make_cfnumber_u32(value)?;
         let ok = with_cfstring(key, |key_cf| unsafe {
             ffi::IOHIDElementSetProperty(self.raw, key_cf, value_cf.cast())
-        })?;
+        });
         unsafe { ffi::CFRelease(value_cf.cast()) };
-        if ok {
+        if ok? {
             Ok(())
         } else {
             Err(HidError::OperationFailed("IOHIDElementSetProperty"))
@@ -1489,9 +1489,9 @@ impl HidElement {
         let value_cf = make_cfstring(value)?;
         let ok = with_cfstring(key, |key_cf| unsafe {
             ffi::IOHIDElementSetProperty(self.raw, key_cf, value_cf.cast())
-        })?;
+        });
         unsafe { ffi::CFRelease(value_cf.cast()) };
-        if ok {
+        if ok? {
             Ok(())
         } else {
             Err(HidError::OperationFailed("IOHIDElementSetProperty"))
@@ -1503,9 +1503,9 @@ impl HidElement {
         let value_cf = make_cfdata(value)?;
         let ok = with_cfstring(key, |key_cf| unsafe {
             ffi::IOHIDElementSetProperty(self.raw, key_cf, value_cf.cast())
-        })?;
+        });
         unsafe { ffi::CFRelease(value_cf.cast()) };
-        if ok {
+        if ok? {
             Ok(())
         } else {
             Err(HidError::OperationFailed("IOHIDElementSetProperty"))
@@ -2119,7 +2119,10 @@ fn cfstring_to_string(value: ffi::CFStringRef) -> Option<String> {
         return None;
     }
     let length = unsafe { ffi::CFStringGetLength(value) };
-    let capacity = usize::try_from((length * 4) + 1).unwrap_or(0);
+    let capacity = length
+        .checked_mul(4)
+        .and_then(|bytes| bytes.checked_add(1))
+        .and_then(|bytes| usize::try_from(bytes).ok())?;
     let mut buffer = vec![0_u8; capacity];
     let ok = unsafe {
         ffi::CFStringGetCString(
