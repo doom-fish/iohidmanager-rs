@@ -349,13 +349,15 @@ impl HidManager {
     ) -> Result<(), HidError> {
         self.save_to_property_domain(application_id, user_name, host_name, options.bits())
     }
+    #[allow(clippy::missing_safety_doc)]
     /// Wraps `IOHIDManagerActivate`.
-    pub fn activate(&self) {
+    pub unsafe fn activate(&self) {
         unsafe { ffi::IOHIDManagerActivate(self.raw) };
     }
 
+    #[allow(clippy::missing_safety_doc)]
     /// Wraps `IOHIDManagerCancel`.
-    pub fn cancel(&self) {
+    pub unsafe fn cancel(&self) {
         unsafe { ffi::IOHIDManagerCancel(self.raw) };
     }
 

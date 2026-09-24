@@ -180,13 +180,15 @@ impl HidQueue {
         unsafe { ffi::IOHIDQueueStop(self.raw) };
     }
 
+    #[allow(clippy::missing_safety_doc)]
     /// Wraps `IOHIDQueueActivate`.
-    pub fn activate(&self) {
+    pub unsafe fn activate(&self) {
         unsafe { ffi::IOHIDQueueActivate(self.raw) };
     }
 
+    #[allow(clippy::missing_safety_doc)]
     /// Wraps `IOHIDQueueCancel`.
-    pub fn cancel(&self) {
+    pub unsafe fn cancel(&self) {
         unsafe { ffi::IOHIDQueueCancel(self.raw) };
     }
 

@@ -152,13 +152,15 @@ impl HidDevice {
         }
     }
 
+    #[allow(clippy::missing_safety_doc)]
     /// Wraps `IOHIDDeviceActivate`.
-    pub fn activate(&self) {
+    pub unsafe fn activate(&self) {
         unsafe { ffi::IOHIDDeviceActivate(self.raw) };
     }
 
+    #[allow(clippy::missing_safety_doc)]
     /// Wraps `IOHIDDeviceCancel`.
-    pub fn cancel(&self) {
+    pub unsafe fn cancel(&self) {
         unsafe { ffi::IOHIDDeviceCancel(self.raw) };
     }
 
