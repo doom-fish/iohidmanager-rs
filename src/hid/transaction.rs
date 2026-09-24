@@ -58,16 +58,6 @@ pub struct HidTransaction {
 
 unsafe impl Send for HidTransaction {}
 
-impl Clone for HidTransaction {
-    fn clone(&self) -> Self {
-        unsafe { ffi::CFRetain(self.raw.cast_const()) };
-        Self {
-            raw: self.raw,
-            device: self.device.clone(),
-        }
-    }
-}
-
 impl Drop for HidTransaction {
     fn drop(&mut self) {
         if !self.raw.is_null() {

@@ -51,16 +51,6 @@ pub struct HidQueue {
 
 unsafe impl Send for HidQueue {}
 
-impl Clone for HidQueue {
-    fn clone(&self) -> Self {
-        unsafe { ffi::CFRetain(self.raw.cast_const()) };
-        Self {
-            raw: self.raw,
-            device: self.device.clone(),
-        }
-    }
-}
-
 impl Drop for HidQueue {
     fn drop(&mut self) {
         if !self.raw.is_null() {
