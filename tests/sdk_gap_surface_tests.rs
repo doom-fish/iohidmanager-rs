@@ -1,3 +1,5 @@
+mod common;
+
 use core::ptr;
 use std::mem::{size_of, size_of_val};
 
@@ -11,7 +13,10 @@ fn manager_options_are_usable() {
     assert_eq!(options.bits(), 0x5);
 
     let manager = HidManager::with_options(HidManagerOptions::NONE).expect("manager");
-    manager.set_device_matching(None).expect("matching");
+    assert!(manager.devices().is_empty());
+    if common::live_tests_enabled() {
+        common::match_non_keyboards(&manager);
+    }
 }
 
 #[test]

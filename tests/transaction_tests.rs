@@ -1,9 +1,12 @@
+mod common;
+
 use iohidmanager::prelude::*;
 
 #[test]
 fn transaction_create_and_mutate() {
-    let manager = HidManager::new().expect("manager");
-    manager.set_device_matching(None).expect("matching");
+    let Some(manager) = common::live_manager() else {
+        return;
+    };
     let Some(device) = manager.live_devices().into_iter().next() else {
         return;
     };

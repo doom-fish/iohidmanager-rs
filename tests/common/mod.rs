@@ -3,6 +3,40 @@
 use std::path::PathBuf;
 use std::process::Command;
 
+use iohidmanager::{keys, DeviceMatch, HidManager, HidUsage};
+
+pub fn live_tests_enabled() -> bool {
+    let enabled = std::env::var("IOHIDMANAGER_LIVE_TESTS").as_deref() == Ok("1");
+    if !enabled {
+        eprintln!("skip: set IOHIDMANAGER_LIVE_TESTS=1 to run tests that open HID devices");
+    }
+    enabled
+}
+
+pub fn match_non_keyboards(manager: &HidManager) {
+    let matches: Vec<DeviceMatch> = [HidUsage::Mouse, HidUsage::Joystick, HidUsage::GamePad]
+        .into_iter()
+        .map(|usage| {
+            let (page, usage) = usage.as_pair();
+            DeviceMatch::new()
+                .with_u32(keys::PRIMARY_USAGE_PAGE_KEY, page)
+                .with_u32(keys::PRIMARY_USAGE_KEY, usage)
+        })
+        .collect();
+    manager
+        .set_device_matching_multiple(&matches)
+        .expect("matching");
+}
+
+pub fn live_manager() -> Option<HidManager> {
+    if !live_tests_enabled() {
+        return None;
+    }
+    let manager = HidManager::new().expect("manager");
+    match_non_keyboards(&manager);
+    Some(manager)
+}
+
 pub fn hid_header(name: &str) -> String {
     let out = Command::new("xcrun")
         .args(["--sdk", "macosx", "--show-sdk-path"])

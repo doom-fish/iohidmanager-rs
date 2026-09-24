@@ -3,8 +3,11 @@
 //! These tests verify the subscribe → drop-handle → stream-closes lifecycle
 //! for every stream surface without requiring real HID hardware.
 
+mod common;
+
 #[cfg(feature = "async")]
 mod async_stream_tests {
+    use crate::common::live_manager;
     use iohidmanager::async_api::{
         DeviceInputValueStream, DeviceRemovalStream, ManagerDeviceMatchingStream,
         ManagerDeviceRemovalStream, ManagerInputReportStream, ManagerInputValueStream,
@@ -37,8 +40,9 @@ mod async_stream_tests {
     /// `ManagerInputValueStream`: subscribe → immediately drop → stream closed.
     #[test]
     fn manager_input_value_stream_subscribe_drop_closes() {
-        let manager = HidManager::new().expect("manager");
-        manager.set_device_matching(None).expect("matching");
+        let Some(manager) = live_manager() else {
+            return;
+        };
 
         let Some(stream) = opened(ManagerInputValueStream::subscribe(&manager, 8)) else {
             return;
@@ -54,8 +58,9 @@ mod async_stream_tests {
     /// so `buffered_count` may be non-zero right after subscription.
     #[test]
     fn manager_device_matching_stream_subscribe_drop_closes() {
-        let manager = HidManager::new().expect("manager");
-        manager.set_device_matching(None).expect("matching");
+        let Some(manager) = live_manager() else {
+            return;
+        };
 
         let stream = ManagerDeviceMatchingStream::subscribe(&manager, 64).expect("subscribe");
         // Give the run-loop thread a moment to process initial matching events.
@@ -67,8 +72,9 @@ mod async_stream_tests {
     /// `ManagerDeviceRemovalStream`: subscribe → drop → no panic.
     #[test]
     fn manager_device_removal_stream_subscribe_drop_closes() {
-        let manager = HidManager::new().expect("manager");
-        manager.set_device_matching(None).expect("matching");
+        let Some(manager) = live_manager() else {
+            return;
+        };
 
         let stream = ManagerDeviceRemovalStream::subscribe(&manager, 8).expect("subscribe");
         assert_eq!(stream.buffered_count(), 0);
@@ -79,8 +85,9 @@ mod async_stream_tests {
     /// `ManagerInputReportStream`: subscribe → drop → no panic.
     #[test]
     fn manager_input_report_stream_subscribe_drop_closes() {
-        let manager = HidManager::new().expect("manager");
-        manager.set_device_matching(None).expect("matching");
+        let Some(manager) = live_manager() else {
+            return;
+        };
 
         let Some(stream) = opened(ManagerInputReportStream::subscribe(&manager, 8)) else {
             return;
@@ -94,8 +101,9 @@ mod async_stream_tests {
     /// `DeviceRemovalStream`: if a device is present, subscribe → drop → no panic.
     #[test]
     fn device_removal_stream_subscribe_drop_closes() {
-        let manager = HidManager::new().expect("manager");
-        manager.set_device_matching(None).expect("matching");
+        let Some(manager) = live_manager() else {
+            return;
+        };
         let devices = manager.live_devices();
         let Some(device) = devices.first() else {
             // No HID devices in CI — skip.
@@ -109,8 +117,9 @@ mod async_stream_tests {
     /// `DeviceInputValueStream`: if a device is present, subscribe → drop → no panic.
     #[test]
     fn device_input_value_stream_subscribe_drop_closes() {
-        let manager = HidManager::new().expect("manager");
-        manager.set_device_matching(None).expect("matching");
+        let Some(manager) = live_manager() else {
+            return;
+        };
         let devices = manager.live_devices();
         let Some(device) = devices.first() else {
             return;
@@ -127,8 +136,9 @@ mod async_stream_tests {
     /// `QueueValueStream`: if a device with elements is present, subscribe → drop.
     #[test]
     fn queue_value_stream_subscribe_drop_closes() {
-        let manager = HidManager::new().expect("manager");
-        manager.set_device_matching(None).expect("matching");
+        let Some(manager) = live_manager() else {
+            return;
+        };
         let Some((queue, element)) = manager.live_devices().into_iter().find_map(|device| {
             let element = device.elements().into_iter().next()?;
             Some((HidQueue::new(&device, 8).ok()?, element))
@@ -151,8 +161,9 @@ mod async_stream_tests {
     /// Verify a capacity-1 stream is constructable.
     #[test]
     fn manager_input_value_stream_capacity_one() {
-        let manager = HidManager::new().expect("manager");
-        manager.set_device_matching(None).expect("matching");
+        let Some(manager) = live_manager() else {
+            return;
+        };
         let Some(stream) = opened(ManagerInputValueStream::subscribe(&manager, 1)) else {
             return;
         };
@@ -163,10 +174,9 @@ mod async_stream_tests {
     #[test]
     fn zero_capacity_is_rejected() {
         let manager = HidManager::new().expect("manager");
-        manager.set_device_matching(None).expect("matching");
         assert!(matches!(
             ManagerDeviceRemovalStream::subscribe(&manager, 0),
-            Err(HidError::InvalidArgument(_))
+            Err(HidError::InvalidArgument(message)) if message.contains("capacity")
         ));
     }
 
@@ -185,8 +195,9 @@ mod async_stream_tests {
 
     #[test]
     fn two_matching_streams_on_one_manager_both_see_present_devices() {
-        let manager = HidManager::new().expect("manager");
-        manager.set_device_matching(None).expect("matching");
+        let Some(manager) = live_manager() else {
+            return;
+        };
         if manager.devices().is_empty() {
             return;
         }
@@ -201,8 +212,9 @@ mod async_stream_tests {
 
     #[test]
     fn a_queue_accepts_one_stream_at_a_time() {
-        let manager = HidManager::new().expect("manager");
-        manager.set_device_matching(None).expect("matching");
+        let Some(manager) = live_manager() else {
+            return;
+        };
         let Some(queue) = manager
             .live_devices()
             .into_iter()

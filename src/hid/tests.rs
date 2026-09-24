@@ -17,10 +17,36 @@ impl Drop for DropFlag {
     }
 }
 
-fn manager_matching_all() -> HidManager {
-    let manager = HidManager::new().expect("manager");
-    manager.set_device_matching(None).expect("matching");
+fn live_tests_enabled() -> bool {
+    let enabled = std::env::var("IOHIDMANAGER_LIVE_TESTS").as_deref() == Ok("1");
+    if !enabled {
+        eprintln!("skip: set IOHIDMANAGER_LIVE_TESTS=1 to run tests that open HID devices");
+    }
+    enabled
+}
+
+fn match_non_keyboards(manager: &HidManager) {
+    let matches: Vec<DeviceMatch> = [HidUsage::Mouse, HidUsage::Joystick, HidUsage::GamePad]
+        .into_iter()
+        .map(|usage| {
+            let (page, usage) = usage.as_pair();
+            DeviceMatch::new()
+                .with_u32(ffi::kIOHIDPrimaryUsagePageKey, page)
+                .with_u32(ffi::kIOHIDPrimaryUsageKey, usage)
+        })
+        .collect();
     manager
+        .set_device_matching_multiple(&matches)
+        .expect("matching");
+}
+
+pub(super) fn live_manager() -> Option<HidManager> {
+    if !live_tests_enabled() {
+        return None;
+    }
+    let manager = HidManager::new().expect("manager");
+    match_non_keyboards(&manager);
+    Some(manager)
 }
 
 fn wait_for(condition: impl Fn() -> bool) -> bool {
@@ -236,14 +262,19 @@ fn manager_subscriptions_require_device_matching() {
         manager.on_input_value(|_, _| {}),
         Err(HidError::InvalidArgument(_))
     ));
-    manager.set_device_matching(None).expect("matching");
+    if !live_tests_enabled() {
+        return;
+    }
+    match_non_keyboards(&manager);
     drop(manager.on_device_removal(|_| {}).expect("removal"));
     event_loop::flush();
 }
 
 #[test]
 fn subscriptions_on_one_manager_do_not_replace_each_other() {
-    let manager = manager_matching_all();
+    let Some(manager) = live_manager() else {
+        return;
+    };
     if manager.devices().is_empty() {
         return;
     }
@@ -270,7 +301,9 @@ fn subscriptions_on_one_manager_do_not_replace_each_other() {
 
 #[test]
 fn a_subscription_dropped_inside_its_callback_stops_at_once() {
-    let manager = manager_matching_all();
+    let Some(manager) = live_manager() else {
+        return;
+    };
     if manager.devices().is_empty() {
         return;
     }
@@ -300,7 +333,9 @@ fn a_subscription_dropped_inside_its_callback_stops_at_once() {
 
 #[test]
 fn dropping_on_another_thread_releases_the_callback() {
-    let manager = manager_matching_all();
+    let Some(manager) = live_manager() else {
+        return;
+    };
     let released = Arc::new(AtomicBool::new(false));
     let flag = DropFlag(Arc::clone(&released));
     let subscription = manager
@@ -315,10 +350,14 @@ fn dropping_on_another_thread_releases_the_callback() {
 
 #[test]
 fn subscribing_and_dropping_from_many_threads_is_sound() {
+    if !live_tests_enabled() {
+        return;
+    }
     let workers: Vec<_> = (0..4)
         .map(|_| {
             thread::spawn(|| {
-                let manager = manager_matching_all();
+                let manager = HidManager::new().expect("manager");
+                match_non_keyboards(&manager);
                 for _ in 0..10 {
                     let hits = Arc::new(AtomicUsize::new(0));
                     let counter = Arc::clone(&hits);
@@ -341,7 +380,9 @@ fn subscribing_and_dropping_from_many_threads_is_sound() {
 
 #[test]
 fn dropping_a_device_subscription_leaves_the_callers_device_open() {
-    let manager = manager_matching_all();
+    let Some(manager) = live_manager() else {
+        return;
+    };
     for device in manager.live_devices() {
         let Some(element) = device.elements().into_iter().find(|element| {
             matches!(
@@ -368,7 +409,9 @@ fn dropping_a_device_subscription_leaves_the_callers_device_open() {
 
 #[test]
 fn value_and_report_subscriptions_use_their_own_device() {
-    let manager = manager_matching_all();
+    let Some(manager) = live_manager() else {
+        return;
+    };
     let Some(device) = without_keyboards(manager.live_devices()).into_iter().next() else {
         return;
     };
@@ -391,7 +434,7 @@ fn value_and_report_subscriptions_use_their_own_device() {
 const NOT_OPEN: ffi::IOReturn = 0xe000_02cd_u32 as ffi::IOReturn;
 
 fn first_device_without_keyboards() -> Option<HidDevice> {
-    without_keyboards(manager_matching_all().live_devices())
+    without_keyboards(live_manager()?.live_devices())
         .into_iter()
         .next()
 }
@@ -403,7 +446,10 @@ fn private_mode_is_empty(mode: ffi::CFStringRef) -> bool {
 
 #[test]
 fn a_device_id_opens_the_same_service_again() {
-    let Some(device) = manager_matching_all().live_devices().into_iter().next() else {
+    let Some(manager) = live_manager() else {
+        return;
+    };
+    let Some(device) = manager.live_devices().into_iter().next() else {
         return;
     };
     let id = device.id().expect("id");
@@ -419,16 +465,15 @@ fn a_device_id_opens_the_same_service_again() {
 
 #[test]
 fn value_info_copies_the_element_identity_and_payload() {
-    let Some(element) = manager_matching_all()
-        .live_devices()
-        .into_iter()
-        .find_map(|device| {
-            device
-                .elements()
-                .into_iter()
-                .find(|element| element.report_size_bits() == 8 && element.report_count() == 1)
-        })
-    else {
+    let Some(manager) = live_manager() else {
+        return;
+    };
+    let Some(element) = manager.live_devices().into_iter().find_map(|device| {
+        device
+            .elements()
+            .into_iter()
+            .find(|element| element.report_size_bits() == 8 && element.report_count() == 1)
+    }) else {
         return;
     };
     let value = HidValue::from_bytes(&element, 42, &[7]).expect("value");
@@ -573,7 +618,10 @@ fn an_empty_output_commit_fails_on_the_private_device_without_waiting() {
 
 #[test]
 fn the_commit_mirror_copies_elements_and_values_onto_the_private_device() {
-    let found = without_keyboards(manager_matching_all().live_devices())
+    let Some(manager) = live_manager() else {
+        return;
+    };
+    let found = without_keyboards(manager.live_devices())
         .into_iter()
         .find_map(|device| {
             let element = device.elements().into_iter().find(|element| {

@@ -1,9 +1,10 @@
-use iohidmanager::prelude::*;
+mod common;
 
 #[test]
 fn device_multi_value_roundtrip() {
-    let manager = HidManager::new().expect("manager");
-    manager.set_device_matching(None).expect("matching");
+    let Some(manager) = common::live_manager() else {
+        return;
+    };
     let devices = manager.live_devices();
     let Some(device) = devices.first() else {
         return;

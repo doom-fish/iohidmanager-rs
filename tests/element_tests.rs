@@ -1,9 +1,10 @@
-use iohidmanager::prelude::*;
+mod common;
 
 #[test]
 fn element_attach_detach_smoke() {
-    let manager = HidManager::new().expect("manager");
-    manager.set_device_matching(None).expect("matching");
+    let Some(manager) = common::live_manager() else {
+        return;
+    };
     let Some(device) = manager.live_devices().into_iter().next() else {
         return;
     };

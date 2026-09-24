@@ -1,9 +1,12 @@
+mod common;
+
 use iohidmanager::prelude::*;
 
 #[test]
 fn value_no_copy_constructor_smoke() {
-    let manager = HidManager::new().expect("manager");
-    manager.set_device_matching(None).expect("matching");
+    let Some(manager) = common::live_manager() else {
+        return;
+    };
     let Some(device) = manager.live_devices().into_iter().next() else {
         return;
     };

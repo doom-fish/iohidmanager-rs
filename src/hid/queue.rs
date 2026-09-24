@@ -298,9 +298,7 @@ mod tests {
     use super::*;
 
     fn queue_for_first_device() -> Option<HidQueue> {
-        let manager = HidManager::new().expect("manager");
-        manager.set_device_matching(None).expect("matching");
-        manager
+        crate::hid::tests::live_manager()?
             .live_devices()
             .into_iter()
             .find_map(|device| HidQueue::new(&device, 8).ok())
