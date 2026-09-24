@@ -70,8 +70,6 @@ pub struct HidQueue {
     schedule: Arc<Mutex<QueueSchedule>>,
 }
 
-unsafe impl Send for HidQueue {}
-
 impl Drop for HidQueue {
     fn drop(&mut self) {
         if !self.raw.is_null() {

@@ -56,8 +56,6 @@ pub struct HidTransaction {
     device: HidDevice,
 }
 
-unsafe impl Send for HidTransaction {}
-
 impl Drop for HidTransaction {
     fn drop(&mut self) {
         if !self.raw.is_null() {

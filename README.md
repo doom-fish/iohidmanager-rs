@@ -13,7 +13,7 @@ iohidmanager = "0.11"
 
 ## Requirements
 
-- macOS. The crate calls `IOKit` directly; its `iokit` dependency builds a small Swift bridge, so building needs the Xcode command-line tools.
+- macOS 10.15 or later, the minimum of the `iokit` dependency. The crate calls `IOKit` directly; its `iokit` dependency builds a small Swift bridge, so building needs the Xcode command-line tools.
 - Reading input from keyboards and keypads needs the **Input Monitoring** permission (System Settings → Privacy & Security). Without it, opening those devices fails with `kIOReturnNotPermitted`, and subscriptions that need an open device return `HidError::DeviceOpenFailed` or `HidError::ManagerOpenFailed`. Enumerating devices and watching them arrive or leave works without it.
 
 ## Quick start
@@ -71,6 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 - Dropping a subscription stops delivery at once. The `IOKit` objects and the callback are released on the event-loop thread after any callback that is already running returns, so dropping never waits and may happen inside the callback itself.
 - Subscriptions never take exclusive access. Seize a device only explicitly, with `HidDevice::open_with_options(keys::OPTIONS_TYPE_SEIZE_DEVICE)`.
 - `HidQueue::on_value_available` allows one subscription per queue at a time.
+- `HidManager`, `HidDevice`, `HidElement`, `HidValue`, `HidQueue` and `HidTransaction` are neither `Send` nor `Sync`, so each stays on the thread that created it. `IOKit` does not lock these objects: `IOHIDDevice` and `IOHIDManager` take no locks (or, for the manager, only around its device set) through macOS 12, and `IOHIDElement`, `IOHIDQueue` and `IOHIDTransaction` never do, while calls that look read-only, such as `IOHIDDeviceGetProperty` and `IOHIDDeviceCopyMatchingElements`, update internal caches. A device passed to a callback belongs to the event-loop thread; to use it elsewhere, send `device.id()` and open the device there with `HidDevice::from_id`. The async streams deliver plain data: `HidDeviceId`, `HidDeviceInfo`, `HidValueInfo` and `HidInputReport`.
 - The dispatch-queue functions (`activate`, `cancel`) are `unsafe`: `IOKit` aborts the process unless a dispatch queue was set first, which only the raw `ffi` module can do.
 
 The `async` feature wraps the same subscriptions as executor-agnostic streams: `ManagerInputValueStream`, `ManagerDeviceMatchingStream`, `ManagerDeviceRemovalStream`, `ManagerInputReportStream`, `DeviceRemovalStream`, `DeviceInputValueStream` and `QueueValueStream`.

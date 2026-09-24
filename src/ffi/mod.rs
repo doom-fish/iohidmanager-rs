@@ -20,6 +20,7 @@ pub use apple_cf::raw::{
 pub type dispatch_queue_t = *mut c_void;
 pub type dispatch_block_t = *mut c_void;
 pub type io_service_t = u32;
+pub type mach_port_t = u32;
 
 pub use iokit::ffi::{
     IOHIDDeviceRef, IOHIDElementRef, IOHIDManagerRef, IOHIDReportType, IOHIDValueRef, IOOptionBits,
@@ -46,6 +47,7 @@ pub type IOHIDStandardType = u32;
 pub type HIDReportCommandType = u32;
 
 pub const kIOReturnSuccess: IOReturn = 0;
+pub const kIOMainPortDefault: mach_port_t = 0;
 
 pub const kCFNumberSInt32Type: i64 = 3;
 pub const kCFNumberSInt64Type: i64 = 4;
@@ -490,6 +492,14 @@ extern "C" {
     pub fn CFRunLoopGetCurrent() -> CFRunLoopRef;
     pub fn CFRunLoopRun();
     pub fn CFRunLoopStop(rl: CFRunLoopRef);
+
+    pub fn IORegistryEntryGetRegistryEntryID(entry: io_service_t, entry_id: *mut u64) -> IOReturn;
+    pub fn IORegistryEntryIDMatching(entry_id: u64) -> CFMutableDictionaryRef;
+    pub fn IOServiceGetMatchingService(
+        main_port: mach_port_t,
+        matching: CFDictionaryRef,
+    ) -> io_service_t;
+    pub fn IOObjectRelease(object: io_service_t) -> IOReturn;
 
     pub fn IOHIDManagerGetTypeID() -> CFTypeID;
     pub fn IOHIDManagerCreate(allocator: CFAllocatorRef, options: IOOptionBits) -> IOHIDManagerRef;

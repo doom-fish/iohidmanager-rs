@@ -21,7 +21,7 @@
 //! | [`ManagerDeviceRemovalStream`] | `IOHIDManagerRegisterDeviceRemovalCallback` | [`DeviceRemovalEvent`] |
 //! | [`ManagerInputReportStream`] | `IOHIDManagerRegisterInputReportCallback` | [`InputReportEvent`] |
 //! | [`DeviceRemovalStream`] | `IOHIDDeviceRegisterRemovalCallback` | `()` |
-//! | [`DeviceInputValueStream`] | `IOHIDDeviceRegisterInputValueCallback` | [`HidValue`] |
+//! | [`DeviceInputValueStream`] | `IOHIDDeviceRegisterInputValueCallback` | [`HidValueInfo`] |
 //! | [`QueueValueStream`] | `IOHIDQueueRegisterValueAvailableCallback` | `()` |
 //!
 //! # Prerequisites for manager-level streams
@@ -47,43 +47,44 @@ use doom_fish_utils::stream::{AsyncStreamSender, BoundedAsyncStream, NextItem};
 
 use crate::error::HidError;
 use crate::hid::{
-    DeviceRemovalSubscription, ElementMatch, HidDevice, HidInputReport, HidManager, HidQueue,
-    HidValue, ManagerDeviceSubscription, ManagerReportSubscription, ManagerValueSubscription,
-    QueueValueAvailableSubscription, ValueSubscription,
+    DeviceRemovalSubscription, ElementMatch, HidDevice, HidDeviceId, HidDeviceInfo, HidInputReport,
+    HidManager, HidQueue, HidValueInfo, ManagerDeviceSubscription, ManagerReportSubscription,
+    ManagerValueSubscription, QueueValueAvailableSubscription, ValueSubscription,
 };
 
 // ──────────────────────────── event types ────────────────────────────────────
 
-/// Event emitted by [`ManagerInputValueStream`] and [`DeviceInputValueStream`].
-#[derive(Clone)]
+/// Event emitted by [`ManagerInputValueStream`].
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InputValueEvent {
     /// The device that produced the value (manager-level stream only; for
-    /// per-device streams use [`DeviceInputValueStream`] which emits [`HidValue`]
+    /// per-device streams use [`DeviceInputValueStream`] which emits [`HidValueInfo`]
     /// directly).
-    pub device: HidDevice,
+    pub device: HidDeviceId,
     /// The changed input value.
-    pub value: HidValue,
+    pub value: HidValueInfo,
 }
 
 /// Event emitted by [`ManagerDeviceMatchingStream`].
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeviceMatchingEvent {
     /// The newly attached device.
-    pub device: HidDevice,
+    pub device: HidDeviceId,
+    pub info: HidDeviceInfo,
 }
 
 /// Event emitted by [`ManagerDeviceRemovalStream`].
-#[derive(Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DeviceRemovalEvent {
     /// The device that was removed.
-    pub device: HidDevice,
+    pub device: HidDeviceId,
 }
 
 /// Event emitted by [`ManagerInputReportStream`].
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InputReportEvent {
     /// The device that sent the report.
-    pub device: HidDevice,
+    pub device: HidDeviceId,
     /// The raw HID report.
     pub report: HidInputReport,
 }
@@ -126,10 +127,12 @@ impl ManagerInputValueStream {
     pub fn subscribe(manager: &HidManager, capacity: usize) -> Result<Self, HidError> {
         let (inner, sender) = stream(capacity)?;
         let subscription = manager.on_input_value(move |device, value| {
-            sender.push(InputValueEvent {
-                device,
-                value: value.clone(),
-            });
+            if let Ok(device) = device.id() {
+                sender.push(InputValueEvent {
+                    device,
+                    value: value.info(),
+                });
+            }
         })?;
         Ok(Self {
             _subscription: subscription,
@@ -186,7 +189,12 @@ impl ManagerDeviceMatchingStream {
     pub fn subscribe(manager: &HidManager, capacity: usize) -> Result<Self, HidError> {
         let (inner, sender) = stream(capacity)?;
         let subscription = manager.on_device_matching(move |device| {
-            sender.push(DeviceMatchingEvent { device });
+            if let Ok(id) = device.id() {
+                sender.push(DeviceMatchingEvent {
+                    device: id,
+                    info: device.info(),
+                });
+            }
         })?;
         Ok(Self {
             _subscription: subscription,
@@ -242,7 +250,9 @@ impl ManagerDeviceRemovalStream {
     pub fn subscribe(manager: &HidManager, capacity: usize) -> Result<Self, HidError> {
         let (inner, sender) = stream(capacity)?;
         let subscription = manager.on_device_removal(move |device| {
-            sender.push(DeviceRemovalEvent { device });
+            if let Ok(device) = device.id() {
+                sender.push(DeviceRemovalEvent { device });
+            }
         })?;
         Ok(Self {
             _subscription: subscription,
@@ -298,7 +308,9 @@ impl ManagerInputReportStream {
     pub fn subscribe(manager: &HidManager, capacity: usize) -> Result<Self, HidError> {
         let (inner, sender) = stream(capacity)?;
         let subscription = manager.on_input_report(move |device, report| {
-            sender.push(InputReportEvent { device, report });
+            if let Ok(device) = device.id() {
+                sender.push(InputReportEvent { device, report });
+            }
         })?;
         Ok(Self {
             _subscription: subscription,
@@ -381,11 +393,11 @@ impl DeviceRemovalStream {
 
 // ── DeviceInputValueStream ────────────────────────────────────────────────────
 
-/// Async stream of [`HidValue`] events from
+/// Async stream of [`HidValueInfo`] events from
 /// `IOHIDDeviceRegisterInputValueCallback`.
 pub struct DeviceInputValueStream {
     _subscription: ValueSubscription,
-    inner: BoundedAsyncStream<HidValue>,
+    inner: BoundedAsyncStream<HidValueInfo>,
 }
 
 #[allow(clippy::missing_errors_doc)]
@@ -398,21 +410,21 @@ impl DeviceInputValueStream {
     ) -> Result<Self, HidError> {
         let (inner, sender) = stream(capacity)?;
         let subscription =
-            device.on_input_value(matching, move |value| sender.push(value.clone()))?;
+            device.on_input_value(matching, move |value| sender.push(value.info()))?;
         Ok(Self {
             _subscription: subscription,
             inner,
         })
     }
 
-    /// Returns a future that resolves to the next [`HidValue`].
+    /// Returns a future that resolves to the next [`HidValueInfo`].
     #[must_use]
-    pub const fn next(&self) -> NextItem<'_, HidValue> {
+    pub const fn next(&self) -> NextItem<'_, HidValueInfo> {
         self.inner.next()
     }
     /// Non-blocking poll.
     #[must_use]
-    pub fn try_next(&self) -> Option<HidValue> {
+    pub fn try_next(&self) -> Option<HidValueInfo> {
         self.inner.try_next()
     }
     /// Number of events currently buffered.

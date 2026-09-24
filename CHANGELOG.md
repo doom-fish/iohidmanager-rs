@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The `set_property_*` setters leaked the value when the key contained NUL, and converting a `CFString` used unchecked arithmetic.
 - Device report buffers are sized from `kIOHIDMaxInputReportSizeKey` (64 bytes if absent, at most 1 MiB) instead of a caller-supplied length.
 - README and `COVERAGE*.md` no longer describe the removed Swift bridge or claim safe wrappers for raw-only functions.
+- Data races inside IOKit from safe code. `HidManager`, `HidDevice`, `HidElement`, `HidQueue` and `HidTransaction` were `Send`, `HidValue` was `Send + Sync`, and devices, elements and values can be cloned, so two threads could use one IOKit object at once. IOKit does not lock these objects: `IOHIDDevice` and its plug-in take no locks through macOS 12, `IOHIDManager` locks only its device set there, and `IOHIDElement`, `IOHIDQueue` and `IOHIDTransaction` never lock, while calls such as `IOHIDDeviceGetProperty` and `IOHIDDeviceCopyMatchingElements` update unlocked dictionaries and sets. The crate supports macOS 10.15, so these releases are in range. The handles now stay on the thread that created them, and compile-time assertions check that they are neither `Send` nor `Sync` and that subscriptions, streams and their events are `Send + Sync`.
 
 ### Changed
 
@@ -37,7 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** `HidQueue` and `HidTransaction` no longer implement `Clone`; a clone shared one mutable IOKit object.
 - **Breaking:** `HidElement` is no longer `Copy`. `parent`, `children`, `attached` and `HidValue::element` return retained handles; `HidValue::from_integer` and `from_bytes` take `&HidElement`; and `HidElement::attach` returns `Result` and rejects elements of another device.
 - **Breaking:** `HidQueue::copy_next_value_with_timeout` takes a `Duration`.
-- **Breaking:** `HidManager`, `HidDevice`, `HidElement`, `HidQueue` and `HidTransaction` are no longer `Sync`, because their setters take `&self`.
+- **Breaking:** `HidManager`, `HidDevice`, `HidElement`, `HidValue`, `HidQueue` and `HidTransaction` are neither `Send` nor `Sync`. A device passed to a callback stays on the event-loop thread; send `HidDevice::id` to another thread and open the device there with `HidDevice::from_id`.
+- **Breaking:** the async streams deliver plain data. `InputValueEvent` holds a `HidDeviceId` and a `HidValueInfo`, `DeviceMatchingEvent` a `HidDeviceId` and a `HidDeviceInfo`, `DeviceRemovalEvent` and `InputReportEvent` a `HidDeviceId`, and `DeviceInputValueStream` yields `HidValueInfo`.
 - The subscription types and async streams are `Send + Sync` without `unsafe impl`.
 - The crate's own Swift bridge is gone; it calls IOKit directly.
 - `rust-version` is 1.82. `apple-cf` is required at `>=0.11, <0.12`, `iokit` at `>=0.6, <0.7` and `doom-fish-utils` at `>=0.4.1, <0.5`.
@@ -45,6 +47,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `ffi::kIOHIDMaxInputReportSizeKey`.
+- `HidDeviceId`, `HidDevice::id` and `HidDevice::from_id`, which look a device up by its registry entry ID.
+- `HidValueInfo` and `HidValue::info`, a plain-data copy of a value.
+- `ffi::kIOMainPortDefault`, `ffi::mach_port_t`, and raw `IORegistryEntryGetRegistryEntryID`, `IORegistryEntryIDMatching`, `IOServiceGetMatchingService` and `IOObjectRelease`.
 
 ### Removed
 

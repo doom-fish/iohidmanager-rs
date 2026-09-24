@@ -29,6 +29,7 @@ pub mod queue;
 /// Service plug-in UUIDs and COM-style interfaces mirrored from `IOHIDDevicePlugIn.h`.
 pub mod service_plugin;
 mod subscription;
+mod thread_safety;
 /// Transaction helpers wrapping `IOHIDTransaction*` APIs.
 pub mod transaction;
 /// Usage-page and usage constants mirrored from `IOHIDUsageTables.h`.
@@ -527,6 +528,19 @@ pub struct HidInputReport {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HidValueInfo {
+    pub cookie: IOHIDElementCookie,
+    pub usage_page: u32,
+    pub usage: u32,
+    pub timestamp: u64,
+    pub integer_value: i64,
+    pub bytes: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct HidDeviceId(pub u64);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 /// Collects common `IOHIDDeviceGetProperty` values.
 pub struct HidDeviceInfo {
     /// Value read from `kIOHIDVendorIDKey`.
@@ -555,8 +569,6 @@ pub struct HidManager {
     device_matching: RefCell<Option<Vec<DeviceMatch>>>,
     input_value_matching: RefCell<Vec<ElementMatch>>,
 }
-
-unsafe impl Send for HidManager {}
 
 impl Drop for HidManager {
     fn drop(&mut self) {
@@ -760,8 +772,6 @@ impl HidManager {
 pub struct HidDevice {
     raw: ffi::IOHIDDeviceRef,
 }
-
-unsafe impl Send for HidDevice {}
 
 impl Clone for HidDevice {
     fn clone(&self) -> Self {
@@ -1076,6 +1086,13 @@ impl HidDevice {
         self.raw
     }
 
+    fn registered_service(&self) -> Result<ffi::io_service_t, HidError> {
+        match unsafe { ffi::IOHIDDeviceGetService(self.raw) } {
+            0 => Err(HidError::OperationFailed("IOHIDDeviceGetService")),
+            service => Ok(service),
+        }
+    }
+
     /// Create a `HidDevice` from a raw ref that we do **not** already own;
     /// `CFRetain` is called so the resulting wrapper releases on drop.
     pub(crate) fn from_raw_retained(raw: ffi::IOHIDDeviceRef) -> Self {
@@ -1090,8 +1107,6 @@ pub struct HidElement {
     raw: ffi::IOHIDElementRef,
     device: Option<HidDevice>,
 }
-
-unsafe impl Send for HidElement {}
 
 impl Clone for HidElement {
     fn clone(&self) -> Self {
@@ -1418,9 +1433,6 @@ pub struct HidValue {
     device: Option<HidDevice>,
 }
 
-unsafe impl Send for HidValue {}
-unsafe impl Sync for HidValue {}
-
 impl Clone for HidValue {
     fn clone(&self) -> Self {
         unsafe { ffi::CFRetain(self.raw) };
@@ -1574,6 +1586,19 @@ impl HidValue {
     /// Wraps `IOHIDValueGetScaledValue`.
     pub fn scaled_value(&self, scale: HidValueScale) -> f64 {
         unsafe { ffi::IOHIDValueGetScaledValue(self.raw, scale.as_raw()) }
+    }
+
+    #[must_use]
+    pub fn info(&self) -> HidValueInfo {
+        let element = unsafe { ffi::IOHIDValueGetElement(self.raw) };
+        HidValueInfo {
+            cookie: unsafe { ffi::IOHIDElementGetCookie(element) },
+            usage_page: unsafe { ffi::IOHIDElementGetUsagePage(element) },
+            usage: unsafe { ffi::IOHIDElementGetUsage(element) },
+            timestamp: self.timestamp(),
+            integer_value: self.integer_value(),
+            bytes: self.bytes(),
+        }
     }
 
     #[must_use]
@@ -1798,10 +1823,7 @@ fn subscribe_device<T: Send + Sync + 'static>(
     handler: T,
     callback: DeviceCallback,
 ) -> Result<Registration<T>, HidError> {
-    let service = unsafe { ffi::IOHIDDeviceGetService(device.raw) };
-    if service == 0 {
-        return Err(HidError::OperationFailed("IOHIDDeviceGetService"));
-    }
+    let service = device.registered_service()?;
     let context = CallbackContext::new(handler);
     let foreign = ForeignRef::new(&context);
     let teardown = event_loop::run_sync(move || open_private_device(service, callback, foreign))??;

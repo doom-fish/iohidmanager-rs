@@ -9,16 +9,6 @@ use apple_cf::raw::CFGetRetainCount;
 use super::*;
 use crate::ffi_impl as ffi;
 
-trait AmbiguousIfSync<A> {
-    fn assert_not_sync() {}
-}
-impl<T: ?Sized> AmbiguousIfSync<()> for T {}
-impl<T: ?Sized + Sync> AmbiguousIfSync<u8> for T {}
-
-fn assert_send<T: Send>() {}
-
-fn assert_send_sync<T: Send + Sync>() {}
-
 struct DropFlag(Arc<AtomicBool>);
 
 impl Drop for DropFlag {
@@ -98,29 +88,6 @@ impl Drop for DeviceLessElement {
 fn stand_in_device() -> HidDevice {
     let raw = make_cfstring("stand-in device").expect("cfstring");
     HidDevice { raw: raw.cast() }
-}
-
-#[test]
-fn handles_are_send_but_not_sync() {
-    assert_send::<HidManager>();
-    assert_send::<HidDevice>();
-    assert_send::<HidElement>();
-    assert_send::<HidQueue>();
-    assert_send::<HidTransaction>();
-    <HidManager as AmbiguousIfSync<_>>::assert_not_sync();
-    <HidDevice as AmbiguousIfSync<_>>::assert_not_sync();
-    <HidElement as AmbiguousIfSync<_>>::assert_not_sync();
-    <HidQueue as AmbiguousIfSync<_>>::assert_not_sync();
-    <HidTransaction as AmbiguousIfSync<_>>::assert_not_sync();
-    assert_send_sync::<HidValue>();
-    assert_send_sync::<ReportSubscription>();
-    assert_send_sync::<TimestampedReportSubscription>();
-    assert_send_sync::<ValueSubscription>();
-    assert_send_sync::<DeviceRemovalSubscription>();
-    assert_send_sync::<ManagerDeviceSubscription>();
-    assert_send_sync::<ManagerReportSubscription>();
-    assert_send_sync::<ManagerValueSubscription>();
-    assert_send_sync::<QueueValueAvailableSubscription>();
 }
 
 #[test]
@@ -428,4 +395,48 @@ fn value_and_report_subscriptions_use_their_own_device() {
     accept(device.on_input_report(|_| {}).map(drop));
     accept(device.on_input_report_with_timestamp(|_| {}).map(drop));
     event_loop::flush();
+}
+
+#[test]
+fn a_device_id_opens_the_same_service_again() {
+    let Some(device) = manager_matching_all().live_devices().into_iter().next() else {
+        return;
+    };
+    let id = device.id().expect("id");
+    let reopened = HidDevice::from_id(id).expect("reopened");
+    assert_ne!(reopened.as_ptr(), device.as_ptr());
+    assert_eq!(reopened.id().expect("reopened id"), id);
+    assert_eq!(reopened.info(), device.info());
+    assert!(matches!(
+        HidDevice::from_id(HidDeviceId(u64::MAX)),
+        Err(HidError::OperationFailed("IOServiceGetMatchingService"))
+    ));
+}
+
+#[test]
+fn value_info_copies_the_element_identity_and_payload() {
+    let Some(element) = manager_matching_all()
+        .live_devices()
+        .into_iter()
+        .find_map(|device| {
+            device
+                .elements()
+                .into_iter()
+                .find(|element| element.report_size_bits() == 8 && element.report_count() == 1)
+        })
+    else {
+        return;
+    };
+    let value = HidValue::from_bytes(&element, 42, &[7]).expect("value");
+    assert_eq!(
+        value.info(),
+        HidValueInfo {
+            cookie: element.cookie(),
+            usage_page: element.usage_page(),
+            usage: element.usage(),
+            timestamp: 42,
+            integer_value: value.integer_value(),
+            bytes: vec![7],
+        }
+    );
 }

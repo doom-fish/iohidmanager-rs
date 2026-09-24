@@ -14,6 +14,7 @@ Legend:
 - Raw C declarations remain available behind the default-enabled `raw-ffi` feature (`iohidmanager::ffi`).
 - `tests/api_coverage.rs` checks that every C function in the installed SDK's manager, device, element, value, transaction and queue headers has a raw declaration; that is raw-FFI coverage, not safe coverage. The rows below say which functions also have a safe wrapper.
 - Every subscription (`on_*`, `async_api` streams) opens a private `IOHIDManager` or `IOHIDDevice` scheduled on the crate's event-loop thread; teardown unschedules and closes it there before the callback context is released.
+- The handle types (`HidManager`, `HidDevice`, `HidElement`, `HidValue`, `HidQueue`, `HidTransaction`) are neither `Send` nor `Sync`, because IOKit does not lock the objects they wrap on macOS 12 and earlier (and never locks elements, queues or transactions). Compile-time assertions in `src/hid/thread_safety.rs` keep it that way.
 - There is no Swift bridge; the stub bridge was removed in 0.11.
 - Not covered: the `CoreHID` framework (macOS 15).
 - Deferred: `IOHIDDevicePlugIn.h` COM-style vtable structs are not surfaced as safe Rust types; UUID discovery helpers are provided instead.

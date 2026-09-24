@@ -90,6 +90,36 @@ impl HidDevice {
         }
     }
 
+    pub fn from_id(id: HidDeviceId) -> Result<Self, HidError> {
+        let matching = unsafe { ffi::IORegistryEntryIDMatching(id.0) };
+        if matching.is_null() {
+            return Err(HidError::OperationFailed("IORegistryEntryIDMatching"));
+        }
+        let service = unsafe {
+            ffi::IOServiceGetMatchingService(ffi::kIOMainPortDefault, matching.cast_const())
+        };
+        if service == 0 {
+            return Err(HidError::OperationFailed("IOServiceGetMatchingService"));
+        }
+        let device = Self::create(service);
+        unsafe { ffi::IOObjectRelease(service) };
+        device
+    }
+
+    pub fn id(&self) -> Result<HidDeviceId, HidError> {
+        let service = self.registered_service()?;
+        let mut entry_id = 0_u64;
+        let status = unsafe { ffi::IORegistryEntryGetRegistryEntryID(service, &raw mut entry_id) };
+        if status == ffi::kIOReturnSuccess {
+            Ok(HidDeviceId(entry_id))
+        } else {
+            Err(HidError::IoReturn(
+                "IORegistryEntryGetRegistryEntryID",
+                status,
+            ))
+        }
+    }
+
     /// Wraps `IOHIDDeviceOpen`.
     pub fn open_with_options(&self, options: ffi::IOHIDOptionsType) -> Result<(), HidError> {
         let status = unsafe { ffi::IOHIDDeviceOpen(self.raw, options) };
