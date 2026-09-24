@@ -18,20 +18,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     manager.set_device_matching(None)?;
 
     // Create each stream, confirm the buffer starts empty, then drop it.
-    // Dropping the stream guard stops the background run-loop thread.
+    // Dropping a stream stops its callback and releases its IOKit objects on
+    // the crate's event-loop thread.
     {
-        let stream = ManagerInputValueStream::subscribe(&manager, 64);
+        let stream = ManagerInputValueStream::subscribe(&manager, 64)?;
         assert_eq!(stream.buffered_count(), 0);
         println!(
             "ManagerInputValueStream: capacity check OK (buffered={})",
             stream.buffered_count()
         );
-        // stream drops here → run-loop thread stopped → sender dropped →
-        // stream is_closed becomes true on the inner BoundedAsyncStream.
+        // stream drops here → callback deactivated → sender dropped once the
+        // event loop has released the subscription.
     }
 
     {
-        let stream = ManagerDeviceMatchingStream::subscribe(&manager, 32);
+        let stream = ManagerDeviceMatchingStream::subscribe(&manager, 32)?;
         println!(
             "ManagerDeviceMatchingStream: capacity check OK (buffered={})",
             stream.buffered_count()
@@ -39,7 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     {
-        let stream = ManagerDeviceRemovalStream::subscribe(&manager, 32);
+        let stream = ManagerDeviceRemovalStream::subscribe(&manager, 32)?;
         println!(
             "ManagerDeviceRemovalStream: capacity check OK (buffered={})",
             stream.buffered_count()
@@ -47,7 +48,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     {
-        let stream = ManagerInputReportStream::subscribe(&manager, 32);
+        let stream = ManagerInputReportStream::subscribe(&manager, 32)?;
         println!(
             "ManagerInputReportStream: capacity check OK (buffered={})",
             stream.buffered_count()
@@ -57,14 +58,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // ── per-device streams ────────────────────────────────────────────────────
     let devices = manager.live_devices();
     if let Some(device) = devices.first() {
-        let removal_stream = DeviceRemovalStream::subscribe(device, 4);
+        let removal_stream = DeviceRemovalStream::subscribe(device, 4)?;
         println!(
             "DeviceRemovalStream: capacity check OK (buffered={})",
             removal_stream.buffered_count()
         );
 
         // DeviceInputValueStream
-        let iv_stream = DeviceInputValueStream::subscribe(device, 64);
+        let iv_stream = DeviceInputValueStream::subscribe(device, &[], 64)?;
         println!(
             "DeviceInputValueStream: capacity check OK (buffered={})",
             iv_stream.buffered_count()
@@ -80,7 +81,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let queue = HidQueue::new(device, 16)?;
             queue.add_element(element);
             queue.start();
-            let q_stream = QueueValueStream::subscribe(&queue, 16);
+            let q_stream = QueueValueStream::subscribe(&queue, 16)?;
             println!(
                 "QueueValueStream: capacity check OK (buffered={})",
                 q_stream.buffered_count()
@@ -94,12 +95,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // ── async poll (pollster) ─────────────────────────────────────────────────
-    // Subscribe to matching events and use a short-circuit await to confirm
+    // Subscribe to removal events and use a short-circuit await to confirm
     // the stream can be polled via any executor.
     let manager2 = HidManager::new()?;
     manager2.set_device_matching(None)?;
 
-    let stream = ManagerDeviceMatchingStream::subscribe(&manager2, 8);
+    let stream = ManagerDeviceRemovalStream::subscribe(&manager2, 8)?;
     // try_next should return None because no events were produced.
     assert!(
         stream.try_next().is_none(),
