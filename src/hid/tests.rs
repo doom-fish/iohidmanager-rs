@@ -157,7 +157,7 @@ fn elements_outlive_the_array_they_came_from() {
     assert_eq!(elements[0].as_ptr(), raw.0);
     assert_eq!(raw.retain_count(), base + 1);
     assert!(elements[0].parent().is_none());
-    assert!(elements[0].children().is_empty());
+    assert_eq!(elements[0].children().len(), 0);
 
     drop(elements);
     assert_eq!(raw.retain_count(), base);
@@ -180,7 +180,7 @@ fn elements_keep_their_device_and_share_it_with_relatives() {
         Some(device.as_ptr())
     );
     element.detach(&sibling);
-    assert!(element.attached().is_empty());
+    assert_eq!(element.attached().len(), 0);
 }
 
 #[test]
@@ -202,7 +202,7 @@ fn attach_rejects_elements_of_another_device() {
         first.attach(&orphan),
         Err(HidError::InvalidArgument(_))
     ));
-    assert!(first.attached().is_empty());
+    assert_eq!(first.attached().len(), 0);
 }
 
 #[test]

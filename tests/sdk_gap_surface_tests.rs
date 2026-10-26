@@ -13,7 +13,7 @@ fn manager_options_are_usable() {
     assert_eq!(options.bits(), 0x5);
 
     let manager = HidManager::with_options(HidManagerOptions::NONE).expect("manager");
-    assert!(manager.devices().is_empty());
+    assert_eq!(manager.devices(), [] as [iohidmanager::HidDeviceInfo; 0]);
     if common::live_tests_enabled() {
         common::match_non_keyboards(&manager);
     }
