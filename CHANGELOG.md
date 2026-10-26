@@ -208,6 +208,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Package contents now include examples and tests.
 - README status and roadmap now reflect the shipped safe surface.
 
+## [0.4.0] - 2026-05-16
+
+### Added
+
+- Add `HidElement` inspection.
+
+## [0.3.0] - 2026-05-16
+
+### Added
+
+- Add the `HidDevice` wrapper and `on_input_report` subscriptions.
+
+## [0.2.0] - 2026-05-16
+
+### Added
+
+- Add input-report callbacks and run-loop scheduling FFI.
+
 ## [0.1.0] - Initial release
 
 ### Added
